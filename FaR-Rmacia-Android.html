@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#2D8B57"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="FaR-Rmacia"/>
+  <title>FaR-Rmacia</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --verde: #2D8B57;
+      --verde-vivo: #42B072;
+      --fondo: #F3F0F7;
+      --azul: #5DADE2;
+      --rojo: #E74C3C;
+      --amarillo: #CCFF00;
+      --blanco: #ffffff;
+      --gris-claro: #EBF5FB;
+      --gris-texto: #5D6D7E;
+      --azul-oscuro: #1F4E79;
+      --naranja: #D35400;
+      --sombra: 0 4px 20px rgba(0,0,0,0.12);
+      --radio: 18px;
+      --radio-grande: 28px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; font-family: 'Nunito', sans-serif; background: var(--fondo); }
+    
+    /* ===== APP SHELL ===== */
+    #app { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+    
+    /* ===== HEADER ===== */
+    #header {
+      background: linear-gradient(135deg, var(--verde) 0%, var(--verde-vivo) 100%);
+      color: white;
+      padding: 12px 16px 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(45,139,87,0.4);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 10;
+    }
+    #header-title { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
+    #header-sub { font-size: 11px; opacity: 0.85; font-weight: 600; }
+    #header-clock { font-family: 'Fira Code', monospace; font-size: 13px; text-align: right; opacity: 0.95; }
+    #btn-back {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      font-size: 18px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    #btn-back.visible { display: flex; }
+
+    /* ===== CONTENT ===== */
+    #content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0; scroll-behavior: smooth; }
+    
+    /* ===== BOTTOM NAV ===== */
+    #bottom-nav {
+      background: white;
+      display: flex;
+      border-top: 1px solid #e0e0e0;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      padding: 8px 4px 6px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      color: #999;
+      font-family: 'Nunito', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .nav-btn .nav-icon { font-size: 22px; }
+    .nav-btn.active { color: var(--verde); }
+    .nav-btn.active::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 20%; right: 20%;
+      height: 3px;
+      background: var(--verde);
+      border-radius: 0 0 4px 4px;
+    }
+
+    /* ===== SCREENS ===== */
+    .screen { display: none; padding: 16px; }
+    .screen.active { display: block; }
+
+    /* ===== MENÚ PRINCIPAL ===== */
+    #screen-menu { padding: 0; }
+    .menu-hero {
+      background: linear-gradient(160deg, #1a5e38 0%, var(--verde) 50%, var(--verde-vivo) 100%);
+      padding: 30px 20px 24px;
+      text-align: center;
+      color: white;
+    }
+    .menu-logo { font-size: 52px; font-weight: 900; letter-spacing: -2px; margin-bottom: 4px; }
+    .menu-logo span { color: var(--amarillo); }
+    .menu-subtitle { font-size: 13px; opacity: 0.8; font-weight: 600; }
+    
+    .citas-strip {
+      background: white;
+      margin: 0;
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+    }
+    .citas-strip-title { font-size: 11px; font-weight: 900; color: var(--azul-oscuro); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .cita-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #fff9c4;
+      border: 1.5px solid #f9e200;
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #555;
+      margin-right: 6px;
+      margin-bottom: 4px;
+      cursor: pointer;
+    }
+    .cita-chip:empty { display: none; }
+    .sin-citas { font-size: 12px; color: #aaa; font-style: italic; }
+
+    .menu-grid { padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .menu-card {
+      background: white;
+      border-radius: var(--radio-grande);
+      padding: 20px 14px;
+      text-align: center;
+      box-shadow: var(--sombra);
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+      active: scale(0.96);
+    }
+    .menu-card:active { transform: scale(0.96); border-color: var(--verde-vivo); }
+    .menu-card-icon { font-size: 36px; display: block; margin-bottom: 8px; }
+    .menu-card-label { font-size: 13px; font-weight: 800; color: var(--azul-oscuro); }
+    .menu-card.full-width { grid-column: 1 / -1; }
+    .menu-card.danger { background: #fff0ef; }
+    .menu-card.danger .menu-card-label { color: var(--rojo); }
+
+    /* ===== CARDS GENÉRICAS ===== */
+    .card {
+      background: white;
+      border-radius: var(--radio-grande);
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    .card-header { font-size: 16px; font-weight: 900; color: var(--azul-oscuro); margin-bottom: 10px; }
+    
+    /* ===== MEDICAMENTOS ===== */
+    .med-card {
+      background: var(--gris-claro);
+      border-radius: var(--radio);
+      border: 2px solid var(--azul);
+      padding: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .med-card:active { transform: scale(0.98); }
+    .med-card-name { font-size: 15px; font-weight: 900; color: var(--azul-oscuro); }
+    .med-card-info { font-size: 13px; color: var(--naranja); font-weight: 700; margin: 3px 0; }
+    .med-card-obs { font-size: 12px; color: var(--gris-texto); }
+    .med-card-pedido { font-size: 12px; font-weight: 700; margin-top: 4px; }
+    .med-card-pedido.incluido { color: var(--verde); }
+    .med-card-pedido.excluido { color: var(--rojo); }
+    .med-card-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-icon {
+      flex: 1;
+      height: 40px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      font-family: 'Nunito', sans-serif;
+    }
+    .btn-verde { background: var(--verde); color: white; }
+    .btn-azul { background: var(--azul); color: white; }
+    .btn-rojo { background: var(--rojo); color: white; }
+    .btn-gris { background: #e0e0e0; color: #333; }
+    .btn-naranja { background: var(--naranja); color: white; }
+    
+    /* ===== FAB ===== */
+    #fab {
+      position: fixed;
+      bottom: 76px;
+      right: 16px;
+      width: 56px; height: 56px;
+      background: var(--verde);
+      border-radius: 50%;
+      border: none;
+      color: white;
+      font-size: 28px;
+      box-shadow: 0 4px 16px rgba(45,139,87,0.5);
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: transform 0.2s;
+    }
+    #fab:active { transform: scale(0.9); }
+    #fab.visible { display: flex; }
+
+    /* ===== FORMULARIOS ===== */
+    .form-group { margin-bottom: 14px; }
+    .form-label { font-size: 12px; font-weight: 800; color: var(--gris-texto); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 15px;
+      font-family: 'Nunito', sans-serif;
+      background: white;
+      color: #333;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+    .form-input:focus { border-color: var(--verde); }
+    .form-textarea {
+      width: 100%; min-height: 120px; resize: vertical;
+      padding: 12px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 14px;
+      font-family: 'Nunito', sans-serif;
+      background: white;
+      outline: none;
+    }
+    .form-textarea:focus { border-color: var(--azul); }
+    
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .toggle-label { font-size: 14px; font-weight: 700; color: #333; }
+    .toggle {
+      position: relative;
+      width: 48px; height: 26px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #ccc;
+      border-radius: 26px;
+      transition: 0.3s;
+    }
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      height: 20px; width: 20px;
+      left: 3px; bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+    .toggle input:checked + .toggle-slider { background: var(--verde); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+    /* ===== BOTONES PRINCIPALES ===== */
+    .btn-primary {
+      width: 100%;
+      padding: 15px;
+      background: var(--verde);
+      color: white;
+      border: none;
+      border-radius: var(--radio);
+      font-size: 16px;
+      font-weight: 900;
+      font-family: 'Nunito', sans-serif;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .btn-primary:active { background: #1a5e38; transform: scale(0.98); }
+    .btn-secondary {
+      width: 100%;
+      padding: 13px;
+      background: white;
+      color: var(--verde);
+      border: 2px solid var(--verde);
+      border-radius: var(--radio);
+      font-size: 15px;
+      font-weight: 800;
+      font-family: 'Nunito', sans-serif;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn-danger {
+      width: 100%;
+      padding: 13px;
+      background: var(--rojo);
+      color: white;
+      border: none;
+      border-radius: var(--radio);
+      font-size: 15px;
+      font-weight: 800;
+      font-family: 'Nunito', sans-serif;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    /* ===== BADGES / PILLS ===== */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .badge-verde { background: #d4f5e2; color: var(--verde); }
+    .badge-rojo { background: #fde8e8; color: var(--rojo); }
+    .badge-azul { background: #dff0fc; color: var(--azul); }
+    .badge-naranja { background: #fde8d0; color: var(--naranja); }
+
+    /* ===== BARRA DE PROGRESO ===== */
+    .progress-bar-wrap { background: #e8e8e8; border-radius: 99px; height: 8px; overflow: hidden; margin: 6px 0; }
+    .progress-bar { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--verde), var(--verde-vivo)); transition: width 0.5s; }
+    .progress-bar.warn { background: linear-gradient(90deg, #f39c12, #e67e22); }
+    .progress-bar.danger { background: linear-gradient(90deg, var(--rojo), #c0392b); }
+
+    /* ===== MODALES ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 500;
+      display: flex;
+      align-items: flex-end;
+      animation: fadeIn 0.2s;
+    }
+    .modal-sheet {
+      background: white;
+      width: 100%;
+      max-height: 90dvh;
+      border-radius: 24px 24px 0 0;
+      padding: 8px 20px 30px;
+      overflow-y: auto;
+      animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .modal-handle { width: 40px; height: 4px; background: #e0e0e0; border-radius: 99px; margin: 8px auto 16px; }
+    .modal-title { font-size: 20px; font-weight: 900; color: var(--azul-oscuro); margin-bottom: 16px; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    /* ===== PEDIDOS ===== */
+    .pedido-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .pedido-row:last-child { border-bottom: none; }
+    .pedido-qty {
+      width: 60px;
+      padding: 8px;
+      border: 2px solid var(--azul);
+      border-radius: 10px;
+      text-align: center;
+      font-size: 16px;
+      font-weight: 900;
+      font-family: 'Fira Code', monospace;
+      flex-shrink: 0;
+    }
+    .pedido-info { flex: 1; min-width: 0; }
+    .pedido-nombre { font-size: 14px; font-weight: 800; color: var(--azul-oscuro); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pedido-stock { font-size: 12px; color: var(--naranja); font-weight: 700; }
+    .pedido-futuro { font-size: 12px; color: var(--verde); font-weight: 700; }
+
+    /* ===== CITAS ===== */
+    .cita-card {
+      background: white;
+      border-radius: var(--radio);
+      border-left: 4px solid var(--azul);
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .cita-date { font-size: 13px; font-weight: 900; color: var(--azul); }
+    .cita-doctor { font-size: 15px; font-weight: 800; color: var(--azul-oscuro); }
+    .cita-obs { font-size: 12px; color: var(--gris-texto); margin-top: 3px; }
+    .cita-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .btn-sm {
+      padding: 6px 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      font-family: 'Nunito', sans-serif;
+    }
+    .btn-sm-azul { background: var(--azul); color: white; }
+    .btn-sm-rojo { background: var(--rojo); color: white; }
+
+    /* ===== HISTORIAL ===== */
+    .nota-area {
+      width: 100%;
+      min-height: 200px;
+      padding: 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: var(--radio);
+      font-size: 14px;
+      font-family: 'Nunito', sans-serif;
+      resize: vertical;
+      line-height: 1.6;
+    }
+    .nota-area:focus { border-color: var(--azul); outline: none; }
+    .doc-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #f5f5f5;
+      border-radius: 10px;
+      margin-bottom: 6px;
+    }
+    .doc-icon { font-size: 20px; flex-shrink: 0; }
+    .doc-name { flex: 1; font-size: 13px; font-weight: 700; color: #333; word-break: break-all; }
+    .doc-del { background: var(--rojo); color: white; border: none; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 14px; }
+
+    /* ===== EMPTY STATE ===== */
+    .empty-state { text-align: center; padding: 40px 20px; }
+    .empty-icon { font-size: 60px; margin-bottom: 12px; opacity: 0.4; }
+    .empty-text { font-size: 15px; color: #aaa; font-weight: 700; }
+
+    /* ===== SECCIÓN TÍTULOS ===== */
+    .section-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--azul-oscuro);
+      margin-bottom: 16px;
+      padding-top: 4px;
+    }
+    .section-title span { color: var(--verde); }
+
+    /* ===== TOAST ===== */
+    #toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #333;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 700;
+      z-index: 9999;
+      opacity: 0;
+      transition: all 0.3s;
+      pointer-events: none;
+      white-space: nowrap;
+      max-width: 90vw;
+      text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.success { background: var(--verde); }
+    #toast.error { background: var(--rojo); }
+
+    /* ===== CONFIRM DIALOG ===== */
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .confirm-box {
+      background: white;
+      border-radius: 20px;
+      padding: 24px;
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+    }
+    .confirm-title { font-size: 18px; font-weight: 900; color: #333; margin-bottom: 10px; }
+    .confirm-text { font-size: 14px; color: #666; margin-bottom: 20px; }
+    .confirm-btns { display: flex; gap: 10px; }
+    .confirm-btns button { flex: 1; padding: 12px; border: none; border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer; font-family: 'Nunito', sans-serif; }
+    .confirm-cancel { background: #e0e0e0; color: #333; }
+    .confirm-ok { background: var(--rojo); color: white; }
+
+    /* ===== HISTORIAL PEDIDOS ===== */
+    .historial-item {
+      background: #f9f9f9;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+      border-left: 3px solid var(--azul);
+    }
+    .historial-item-date { font-size: 11px; color: #999; font-weight: 700; }
+    .historial-item-num { font-size: 13px; font-weight: 900; color: var(--azul-oscuro); }
+    .historial-item-med { font-size: 12px; color: #555; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 99px; }
+
+    /* Date input */
+    input[type="date"], input[type="time"] {
+      appearance: none;
+      -webkit-appearance: none;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- HEADER -->
+  <div id="header">
+    <button id="btn-back" onclick="goBack()">←</button>
+    <div>
+      <div id="header-title">💊 FaR-Rmacia</div>
+      <div id="header-sub">Gestión de medicamentos</div>
+    </div>
+    <div id="header-clock"></div>
+  </div>
+
+  <!-- CONTENT -->
+  <div id="content">
+    <!-- MENÚ PRINCIPAL -->
+    <div id="screen-menu" class="screen active">
+      <div class="menu-hero">
+        <div class="menu-logo">FaR-<span>Rmacia</span></div>
+        <div class="menu-subtitle">Tu farmacia personal siempre contigo</div>
+      </div>
+      <div class="citas-strip">
+        <div class="citas-strip-title">📅 Próximas citas</div>
+        <div id="citas-mini-list"><span class="sin-citas">Sin citas próximas</span></div>
+      </div>
+      <div class="menu-grid">
+        <div class="menu-card" onclick="navigate('medicamentos')">
+          <span class="menu-card-icon">💊</span>
+          <span class="menu-card-label">Medicamentos</span>
+        </div>
+        <div class="menu-card" onclick="navigate('inventario')">
+          <span class="menu-card-icon">📦</span>
+          <span class="menu-card-label">Stock / Inventario</span>
+        </div>
+        <div class="menu-card" onclick="navigate('pedidos')">
+          <span class="menu-card-icon">🛒</span>
+          <span class="menu-card-label">Pedidos</span>
+        </div>
+        <div class="menu-card" onclick="navigate('citas')">
+          <span class="menu-card-icon">📅</span>
+          <span class="menu-card-label">Citas Médicas</span>
+        </div>
+        <div class="menu-card full-width" onclick="navigate('historial')">
+          <span class="menu-card-icon">📁</span>
+          <span class="menu-card-label">Historial Médico</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTARIO -->
+    <div id="screen-inventario" class="screen">
+      <div class="section-title">📦 Stock e <span>Inventario</span></div>
+      <div id="inventario-list"></div>
+    </div>
+
+    <!-- MEDICAMENTOS FORMULARIO -->
+    <div id="screen-medicamentos" class="screen">
+      <div class="section-title">💊 <span>Medicamentos</span></div>
+      <div class="card">
+        <div class="card-header">➕ Nuevo Medicamento</div>
+        <div class="form-group">
+          <label class="form-label">Nombre del Medicamento</label>
+          <input type="text" class="form-input" id="f-nombre" placeholder="Ej: Ibuprofeno 400mg"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dosis por Bote (unidades)</label>
+          <input type="number" class="form-input" id="f-bote" placeholder="Ej: 30"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tomas al Día</label>
+          <input type="number" class="form-input" id="f-dosis" placeholder="Ej: 2" step="0.5"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stock Inicial (Botes)</label>
+          <input type="number" class="form-input" id="f-stock" placeholder="Ej: 3" step="0.5"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observaciones</label>
+          <input type="text" class="form-input" id="f-obs" placeholder="Ej: Tomar con comida"/>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">✅ Incluir en pedidos sugeridos</span>
+          <label class="toggle"><input type="checkbox" id="f-incluir" checked><span class="toggle-slider"></span></label>
+        </div>
+        <button class="btn-primary" onclick="guardarMedicamento()">💾 Guardar Medicamento</button>
+      </div>
+    </div>
+
+    <!-- PEDIDOS -->
+    <div id="screen-pedidos" class="screen">
+      <div class="section-title">🛒 <span>Pedido</span> Farmacia</div>
+      <div class="card">
+        <div class="card-header">⚙️ Calcular Pedido</div>
+        <div style="display:flex;gap:10px;margin-bottom:10px;">
+          <div style="flex:1">
+            <label class="form-label">Días</label>
+            <input type="number" class="form-input" id="p-dias" placeholder="90" style="padding:10px"/>
+          </div>
+          <div style="flex:1">
+            <label class="form-label">Meses</label>
+            <input type="number" class="form-input" id="p-meses" placeholder="3" step="0.5" style="padding:10px"/>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-primary" style="margin-top:0" onclick="calcularPedidoDias()">Calcular días</button>
+          <button class="btn-primary" style="margin-top:0;background:var(--azul)" onclick="calcularPedidoMeses()">Calcular meses</button>
+        </div>
+      </div>
+      <div id="pedidos-list"></div>
+      <div style="padding:0 0 16px">
+        <button class="btn-primary" onclick="confirmarPedido()">✅ Confirmar y Actualizar Stock</button>
+        <button class="btn-secondary" onclick="navigate('historial-pedidos')">📜 Historial de Pedidos</button>
+      </div>
+    </div>
+
+    <!-- CITAS MÉDICAS -->
+    <div id="screen-citas" class="screen">
+      <div class="section-title">📅 Citas <span>Médicas</span></div>
+      <div class="card">
+        <div class="card-header" id="citas-form-title">➕ Nueva Cita</div>
+        <div class="form-group">
+          <label class="form-label">Médico / Especialista</label>
+          <input type="text" class="form-input" id="c-prof" placeholder="Ej: Dr. García - Cardiología"/>
+        </div>
+        <div style="display:flex;gap:10px">
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Fecha</label>
+            <input type="date" class="form-input" id="c-fecha" style="padding:10px"/>
+          </div>
+          <div class="form-group" style="flex:1">
+            <label class="form-label">Hora</label>
+            <input type="time" class="form-input" id="c-hora" value="10:00" style="padding:10px"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observaciones</label>
+          <input type="text" class="form-input" id="c-obs" placeholder="Ej: Llevar analítica"/>
+        </div>
+        <button class="btn-primary" id="c-btn-guardar" onclick="guardarCita()">➕ Añadir Cita</button>
+        <button class="btn-secondary" id="c-btn-cancelar" style="display:none" onclick="cancelarEditarCita()">Cancelar</button>
+      </div>
+      <div class="section-title" style="margin-top:8px;font-size:16px">📋 Agenda</div>
+      <div id="citas-list"></div>
+    </div>
+
+    <!-- HISTORIAL MÉDICO -->
+    <div id="screen-historial" class="screen">
+      <div class="section-title">📁 Historial <span>Médico</span></div>
+      <div class="card">
+        <div class="card-header">📝 Bloc de Notas Médicas</div>
+        <textarea id="h-notas" class="nota-area" placeholder="Escribe aquí tus notas médicas, diagnósticos, medicaciones anteriores..."></textarea>
+        <button class="btn-primary" onclick="guardarNotas()">💾 Guardar Notas</button>
+      </div>
+      <div class="card">
+        <div class="card-header">📂 Documentos Archivados</div>
+        <p style="font-size:12px;color:#999;margin-bottom:10px;">En Android puedes guardar texto o notas como documentos.</p>
+        <button class="btn-secondary" style="margin-top:0" onclick="archivarDocumento()">📄 Crear Nota / Documento</button>
+        <div id="docs-list" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <!-- HISTORIAL PEDIDOS -->
+    <div id="screen-historial-pedidos" class="screen">
+      <div class="section-title">📜 Historial de <span>Pedidos</span></div>
+      <div id="historial-pedidos-list"></div>
+    </div>
+
+    <!-- MODIFICAR MEDICAMENTO -->
+    <div id="screen-modificar" class="screen">
+      <div class="section-title">✏️ Modificar <span>Registro</span></div>
+      <div class="card">
+        <div class="form-group">
+          <label class="form-label">Nombre del Medicamento</label>
+          <input type="text" class="form-input" id="m-nombre"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dosis por Bote</label>
+          <input type="number" class="form-input" id="m-bote"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tomas al Día</label>
+          <input type="number" class="form-input" id="m-dosis" step="0.5"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stock (Botes)</label>
+          <input type="number" class="form-input" id="m-stock" step="0.5"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observaciones</label>
+          <input type="text" class="form-input" id="m-obs"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha de Inicio</label>
+          <input type="date" class="form-input" id="m-fecha" style="padding:10px"/>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-label">✅ Incluir en pedidos sugeridos</span>
+          <label class="toggle"><input type="checkbox" id="m-incluir"><span class="toggle-slider"></span></label>
+        </div>
+        <button class="btn-primary" id="m-guardar">💾 Actualizar</button>
+        <button class="btn-danger" id="m-borrar" style="margin-top:8px">🗑️ Eliminar Medicamento</button>
+        <button class="btn-secondary" onclick="navigate('inventario')">🔙 Volver</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" data-nav="menu" onclick="navigate('menu')">
+      <span class="nav-icon">🏠</span>Inicio
+    </button>
+    <button class="nav-btn" data-nav="inventario" onclick="navigate('inventario')">
+      <span class="nav-icon">📦</span>Stock
+    </button>
+    <button class="nav-btn" data-nav="pedidos" onclick="navigate('pedidos')">
+      <span class="nav-icon">🛒</span>Pedidos
+    </button>
+    <button class="nav-btn" data-nav="citas" onclick="navigate('citas')">
+      <span class="nav-icon">📅</span>Citas
+    </button>
+    <button class="nav-btn" data-nav="historial" onclick="navigate('historial')">
+      <span class="nav-icon">📁</span>Historial
+    </button>
+  </nav>
+</div>
+
+<!-- FAB -->
+<button id="fab" onclick="fabAction()">+</button>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>// =============================================
+// FaR-Rmacia - App Logic (app.js)
+// =============================================
+
+// ===== BASE DE DATOS (localStorage) =====
+const DB = {
+  get(key, def = []) {
+    try { return JSON.parse(localStorage.getItem('farrmacia_' + key)) ?? def; }
+    catch { return def; }
+  },
+  set(key, val) {
+    localStorage.setItem('farrmacia_' + key, JSON.stringify(val));
+  }
+};
+
+// Inicializar datos de ejemplo si está vacío
+function initDB() {
+  if (DB.get('meds').length === 0) {
+    DB.set('meds', [
+      { id: 1, nombre: 'Ejemplo - Omeprazol 20mg', cantidad_bote: 28, dosis_dia: 1, stock_real: 2, observaciones: 'En ayunas', foto: '', fecha_inicio: '', incluir_pedido: 1 }
+    ]);
+  }
+  if (!DB.get('notas', null)) DB.set('notas', '');
+  if (!DB.get('nextId', null)) DB.set('nextId', 100);
+  if (!DB.get('nextPedidoId', null)) DB.set('nextPedidoId', 1);
+}
+
+function nextId() {
+  const n = DB.get('nextId', 100) + 1;
+  DB.set('nextId', n);
+  return n;
+}
+
+// ===== NAVEGACIÓN =====
+let currentScreen = 'menu';
+let navHistory = [];
+let editingCitaId = null;
+let editingMedId = null;
+let pedidoItems = [];
+
+function navigate(screen) {
+  // Guardar en historial
+  if (currentScreen !== screen) navHistory.push(currentScreen);
+
+  currentScreen = screen;
+
+  // Ocultar todas
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + screen)?.classList.add('active');
+
+  // Header
+  const titles = {
+    'menu': { title: '💊 FaR-Rmacia', sub: 'Tu farmacia personal', back: false },
+    'inventario': { title: '📦 Stock e Inventario', sub: '', back: true },
+    'medicamentos': { title: '💊 Nuevo Medicamento', sub: '', back: true },
+    'pedidos': { title: '🛒 Pedido Farmacia', sub: '', back: true },
+    'citas': { title: '📅 Citas Médicas', sub: '', back: true },
+    'historial': { title: '📁 Historial Médico', sub: '', back: true },
+    'modificar': { title: '✏️ Modificar', sub: '', back: true },
+    'historial-pedidos': { title: '📜 Historial Pedidos', sub: '', back: true },
+  };
+  const t = titles[screen] || { title: 'FaR-Rmacia', sub: '', back: true };
+  document.getElementById('header-title').textContent = t.title;
+  document.getElementById('header-sub').textContent = t.sub;
+  document.getElementById('btn-back').classList.toggle('visible', t.back);
+
+  // Actualizar nav
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.nav === screen);
+  });
+
+  // FAB
+  const fabScreens = ['inventario', 'citas', 'medicamentos'];
+  const fab = document.getElementById('fab');
+  if (screen === 'inventario' || screen === 'medicamentos') {
+    fab.textContent = '+';
+    fab.classList.add('visible');
+  } else if (screen === 'citas') {
+    fab.textContent = '+';
+    fab.classList.add('visible');
+  } else {
+    fab.classList.remove('visible');
+  }
+
+  // Cargar datos de cada pantalla
+  switch(screen) {
+    case 'menu': cargarCitasMini(); break;
+    case 'inventario': renderInventario(); break;
+    case 'pedidos': renderPedidos(); break;
+    case 'citas': renderCitas(); break;
+    case 'historial': cargarHistorial(); break;
+    case 'historial-pedidos': renderHistorialPedidos(); break;
+  }
+
+  // Scroll al top
+  document.getElementById('content').scrollTop = 0;
+}
+
+function goBack() {
+  if (navHistory.length > 0) {
+    navigate(navHistory.pop());
+    navHistory.pop(); // quitar el que acaba de añadir navigate
+  } else {
+    navigate('menu');
+  }
+}
+
+function fabAction() {
+  if (currentScreen === 'inventario' || currentScreen === 'medicamentos') {
+    navigate('medicamentos');
+    limpiarFormulario();
+  } else if (currentScreen === 'citas') {
+    document.getElementById('c-prof').focus();
+  }
+}
+
+// ===== RELOJ =====
+function actualizarReloj() {
+  const ahora = new Date();
+  const dia = String(ahora.getDate()).padStart(2,'0');
+  const mes = ahora.toLocaleString('es-ES', {month:'short'});
+  const anio = ahora.getFullYear();
+  const hora = String(ahora.getHours()).padStart(2,'0');
+  const min = String(ahora.getMinutes()).padStart(2,'0');
+  document.getElementById('header-clock').innerHTML = `${dia} ${mes} ${anio}<br>${hora}:${min}`;
+}
+
+// ===== TOAST =====
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  setTimeout(() => t.className = '', 2500);
+}
+
+// ===== CONFIRM =====
+function showConfirm(title, text, onOk) {
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-box">
+      <div class="confirm-title">${title}</div>
+      <div class="confirm-text">${text}</div>
+      <div class="confirm-btns">
+        <button class="confirm-cancel" onclick="this.closest('.confirm-overlay').remove()">Cancelar</button>
+        <button class="confirm-ok" id="confirm-ok-btn">Sí, confirmar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById('confirm-ok-btn').onclick = () => { overlay.remove(); onOk(); };
+}
+
+// ===== CALCULAR STOCK =====
+function calcularStock(med) {
+  const unidBote = parseFloat(med.cantidad_bote || 0);
+  const tomaDia = parseFloat(med.dosis_dia || 0);
+  const botesIni = parseFloat(med.stock_real || 0);
+  const fechaIni = med.fecha_inicio;
+
+  const dosisTotal = botesIni * unidBote;
+
+  if (fechaIni && tomaDia > 0) {
+    const fInicio = new Date(fechaIni);
+    const hoy = new Date();
+    const diasPasados = Math.max(0, Math.floor((hoy - fInicio) / 86400000));
+    const dosisActuales = Math.max(0, dosisTotal - (diasPasados * tomaDia));
+    const botesCalc = unidBote > 0 ? Math.round(dosisActuales / unidBote * 100) / 100 : 0;
+    const diasRestantes = tomaDia > 0 ? Math.floor(dosisActuales / tomaDia) : 0;
+    return { dosisActuales, botesCalc, diasRestantes, unidBote, tomaDia, iniciado: true };
+  } else {
+    const diasRestantes = tomaDia > 0 ? Math.floor(dosisTotal / tomaDia) : 0;
+    return { dosisActuales: dosisTotal, botesCalc: botesIni, diasRestantes, unidBote, tomaDia, iniciado: false };
+  }
+}
+
+function formatTiempo(dias) {
+  if (dias <= 0) return '⚠️ Sin stock';
+  const sem = (dias / 7).toFixed(1);
+  const mes = (dias / 30).toFixed(1);
+  return `${dias} días | ${sem} sem. | ${mes} mes.`;
+}
+
+function colorDias(dias) {
+  if (dias <= 7) return 'danger';
+  if (dias <= 30) return 'warn';
+  return '';
+}
+
+// ===== INVENTARIO =====
+function renderInventario() {
+  const meds = DB.get('meds');
+  const container = document.getElementById('inventario-list');
+
+  if (meds.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">No hay medicamentos.<br>Pulsa + para añadir uno.</div></div>`;
+    return;
+  }
+
+  container.innerHTML = meds.map(med => {
+    const s = calcularStock(med);
+    const pct = s.iniciado
+      ? Math.min(100, Math.round((s.diasRestantes / 90) * 100))
+      : 100;
+    const colorBar = colorDias(s.diasRestantes);
+    const tiempoTxt = s.iniciado ? formatTiempo(s.diasRestantes) : "▶️ Pulsa 'Iniciar'";
+    const pedidoTxt = med.incluir_pedido ? '✅ Incluido en pedidos' : '❌ Excluido de pedidos';
+    const pedidoCls = med.incluir_pedido ? 'incluido' : 'excluido';
+
+    return `
+    <div class="med-card" onclick="abrirModificar(${med.id})">
+      <div class="med-card-name">💊 ${med.nombre.toUpperCase()}</div>
+      <div style="display:flex;gap:8px;margin:4px 0;flex-wrap:wrap">
+        <span class="badge badge-azul">${s.botesCalc} botes</span>
+        <span class="badge badge-naranja">${s.unidBote} uds/bote</span>
+        <span class="badge badge-verde">${s.tomaDia}/día</span>
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar ${colorBar}" style="width:${pct}%"></div></div>
+      <div class="med-card-info">⏳ ${tiempoTxt}</div>
+      <div class="med-card-pedido ${pedidoCls}">${pedidoTxt}</div>
+      ${med.observaciones ? `<div class="med-card-obs">📝 ${med.observaciones}</div>` : ''}
+      <div class="med-card-actions">
+        <button class="btn-icon btn-verde" onclick="event.stopPropagation();iniciarTratamiento(${med.id})">▶️ Iniciar</button>
+        <button class="btn-icon btn-azul" onclick="event.stopPropagation();abrirModificar(${med.id})">✏️ Editar</button>
+        <button class="btn-icon btn-rojo" onclick="event.stopPropagation();borrarMed(${med.id})">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== AÑADIR MEDICAMENTO =====
+function limpiarFormulario() {
+  ['f-nombre','f-bote','f-dosis','f-stock','f-obs'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-incluir').checked = true;
+}
+
+function guardarMedicamento() {
+  const nombre = document.getElementById('f-nombre').value.trim();
+  if (!nombre) { showToast('⚠️ Escribe el nombre del medicamento', 'error'); return; }
+
+  const med = {
+    id: nextId(),
+    nombre,
+    cantidad_bote: parseFloat(document.getElementById('f-bote').value) || 0,
+    dosis_dia: parseFloat(document.getElementById('f-dosis').value) || 0,
+    stock_real: parseFloat(document.getElementById('f-stock').value) || 0,
+    observaciones: document.getElementById('f-obs').value.trim(),
+    foto: '',
+    fecha_inicio: '',
+    incluir_pedido: document.getElementById('f-incluir').checked ? 1 : 0
+  };
+
+  const meds = DB.get('meds');
+  meds.push(med);
+  DB.set('meds', meds);
+  limpiarFormulario();
+  showToast('✅ Medicamento guardado');
+  navigate('inventario');
+}
+
+// ===== INICIAR TRATAMIENTO =====
+function iniciarTratamiento(id) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  const hoy = new Date().toISOString().split('T')[0];
+  modal.innerHTML = `
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">📅 Fecha de inicio del tratamiento</div>
+      <div class="form-group">
+        <label class="form-label">Selecciona la fecha</label>
+        <input type="date" class="form-input" id="modal-fecha" value="${hoy}" style="padding:12px"/>
+      </div>
+      <button class="btn-primary" onclick="guardarFechaInicio(${id})">💾 Guardar Fecha</button>
+      <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function guardarFechaInicio(id) {
+  const fecha = document.getElementById('modal-fecha').value;
+  const meds = DB.get('meds');
+  const idx = meds.findIndex(m => m.id === id);
+  if (idx >= 0) {
+    meds[idx].fecha_inicio = fecha;
+    DB.set('meds', meds);
+    showToast('✅ Tratamiento iniciado');
+    document.querySelector('.modal-overlay')?.remove();
+    renderInventario();
+  }
+}
+
+// ===== MODIFICAR MEDICAMENTO =====
+function abrirModificar(id) {
+  const meds = DB.get('meds');
+  const med = meds.find(m => m.id === id);
+  if (!med) return;
+  editingMedId = id;
+
+  const s = calcularStock(med);
+  document.getElementById('m-nombre').value = med.nombre;
+  document.getElementById('m-bote').value = med.cantidad_bote;
+  document.getElementById('m-dosis').value = med.dosis_dia;
+  document.getElementById('m-stock').value = s.botesCalc;
+  document.getElementById('m-obs').value = med.observaciones || '';
+  document.getElementById('m-fecha').value = med.fecha_inicio || '';
+  document.getElementById('m-incluir').checked = med.incluir_pedido === 1;
+
+  document.getElementById('m-guardar').onclick = () => actualizarMed(id);
+  document.getElementById('m-borrar').onclick = () => borrarMed(id);
+
+  navigate('modificar');
+}
+
+function actualizarMed(id) {
+  const meds = DB.get('meds');
+  const idx = meds.findIndex(m => m.id === id);
+  if (idx < 0) return;
+
+  const nuevoStock = parseFloat(document.getElementById('m-stock').value) || 0;
+  const unidBote = parseFloat(document.getElementById('m-bote').value) || 1;
+  meds[idx] = {
+    ...meds[idx],
+    nombre: document.getElementById('m-nombre').value.trim(),
+    cantidad_bote: unidBote,
+    dosis_dia: parseFloat(document.getElementById('m-dosis').value) || 0,
+    stock_real: nuevoStock,
+    observaciones: document.getElementById('m-obs').value.trim(),
+    fecha_inicio: document.getElementById('m-fecha').value || '',
+    incluir_pedido: document.getElementById('m-incluir').checked ? 1 : 0
+  };
+
+  DB.set('meds', meds);
+  showToast('✅ Registro actualizado');
+  navigate('inventario');
+}
+
+function borrarMed(id) {
+  showConfirm('🗑️ Eliminar medicamento', '¿Eliminar este registro permanentemente?', () => {
+    const meds = DB.get('meds').filter(m => m.id !== id);
+    DB.set('meds', meds);
+    showToast('Medicamento eliminado', 'error');
+    navigate('inventario');
+  });
+}
+
+// ===== PEDIDOS =====
+function renderPedidos() {
+  const meds = DB.get('meds').sort((a,b) => {
+    if (b.incluir_pedido !== a.incluir_pedido) return b.incluir_pedido - a.incluir_pedido;
+    return a.nombre.localeCompare(b.nombre);
+  });
+
+  pedidoItems = meds.map(med => {
+    const s = calcularStock(med);
+    return { ...med, ...s, qty: 0 };
+  });
+
+  const container = document.getElementById('pedidos-list');
+  if (meds.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🛒</div><div class="empty-text">No hay medicamentos registrados.</div></div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="card">` + pedidoItems.map((item, i) => `
+    <div class="pedido-row" id="pedido-row-${i}" style="${item.incluir_pedido === 0 ? 'opacity:0.5;background:#fff5f5' : ''}">
+      <div>
+        <input type="checkbox" style="width:20px;height:20px;accent-color:var(--verde)" ${item.incluir_pedido ? 'checked' : ''}
+          onchange="togglePedidoIncluir(${i}, this.checked)"/>
+      </div>
+      <input type="number" class="pedido-qty" id="qty-${i}" value="0" min="0" 
+        onchange="actualizarFuturo(${i})" oninput="actualizarFuturo(${i})"/>
+      <div class="pedido-info">
+        <div class="pedido-nombre">${item.nombre}</div>
+        <div class="pedido-stock">📦 ${item.botesCalc} botes | ${formatTiempo(item.diasRestantes)}</div>
+        <div class="pedido-futuro" id="futuro-${i}">--</div>
+      </div>
+    </div>
+  `).join('') + `</div>`;
+}
+
+function togglePedidoIncluir(i, checked) {
+  pedidoItems[i].incluir_pedido = checked ? 1 : 0;
+  const row = document.getElementById('pedido-row-' + i);
+  row.style.opacity = checked ? '1' : '0.5';
+  row.style.background = checked ? '' : '#fff5f5';
+}
+
+function actualizarFuturo(i) {
+  const qty = parseFloat(document.getElementById('qty-' + i).value) || 0;
+  pedidoItems[i].qty = qty;
+  const item = pedidoItems[i];
+  if (qty > 0 && item.tomaDia > 0 && item.unidBote > 0) {
+    const dosisExtra = qty * item.unidBote;
+    const diasFuturo = Math.floor((item.dosisActuales + dosisExtra) / item.tomaDia);
+    document.getElementById('futuro-' + i).textContent = '✅ Tras pedir: ' + formatTiempo(diasFuturo);
+  } else {
+    document.getElementById('futuro-' + i).textContent = '--';
+  }
+}
+
+function calcularPedidoDias() {
+  const dias = parseFloat(document.getElementById('p-dias').value);
+  if (!dias || dias <= 0) { showToast('Introduce los días necesarios', 'error'); return; }
+  _ejecutarCalculo(dias);
+}
+
+function calcularPedidoMeses() {
+  const meses = parseFloat(document.getElementById('p-meses').value);
+  if (!meses || meses <= 0) { showToast('Introduce los meses necesarios', 'error'); return; }
+  _ejecutarCalculo(Math.round(meses * 30));
+}
+
+function _ejecutarCalculo(dias) {
+  pedidoItems.forEach((item, i) => {
+    if (item.incluir_pedido === 0) {
+      document.getElementById('qty-' + i).value = 0;
+      document.getElementById('futuro-' + i).textContent = 'EXCLUIDO';
+      return;
+    }
+    const necesito = item.tomaDia * dias;
+    const tengo = item.botesCalc * item.unidBote;
+    const falta = Math.max(0, necesito - tengo);
+    const botes = item.unidBote > 0
+      ? Math.ceil(falta / item.unidBote)
+      : 0;
+    document.getElementById('qty-' + i).value = botes;
+    pedidoItems[i].qty = botes;
+    actualizarFuturo(i);
+  });
+  showToast(`✅ Calculado para ${dias} días`);
+}
+
+function confirmarPedido() {
+  const conCantidad = pedidoItems.filter(it => it.qty > 0 && it.incluir_pedido);
+  if (conCantidad.length === 0) { showToast('No hay cantidades a pedir', 'error'); return; }
+
+  showConfirm('✅ Confirmar Pedido', `¿Actualizar el stock con ${conCantidad.length} medicamento(s)?`, () => {
+    const meds = DB.get('meds');
+    const historial = DB.get('historial_pedidos', []);
+    const numPedido = 'P' + String(DB.get('nextPedidoId', 1)).padStart(4, '0');
+    DB.set('nextPedidoId', (DB.get('nextPedidoId', 1) + 1));
+    const fecha = new Date().toLocaleString('es-ES');
+
+    pedidoItems.forEach(item => {
+      if (item.qty <= 0 || !item.incluir_pedido) return;
+      const idx = meds.findIndex(m => m.id === item.id);
+      if (idx >= 0) {
+        const stockAnterior = parseFloat(meds[idx].stock_real) || 0;
+        const nuevoStock = item.botesCalc + item.qty;
+        meds[idx].stock_real = nuevoStock;
+        if (!meds[idx].fecha_inicio) meds[idx].fecha_inicio = '';
+
+        historial.push({
+          id: nextId(),
+          fecha,
+          num_pedido: numPedido,
+          medicamento: item.nombre,
+          botes_pedidos: item.qty,
+          botes_total: nuevoStock
+        });
+      }
+    });
+
+    DB.set('meds', meds);
+    DB.set('historial_pedidos', historial);
+    showToast(`✅ Pedido ${numPedido} confirmado`);
+    generarResumenPedido(numPedido, conCantidad);
+    navigate('inventario');
+  });
+}
+
+function generarResumenPedido(numPedido, items) {
+  const lineas = items.map(it => `• ${it.nombre}: ${it.qty} botes`).join('\n');
+  const texto = `PEDIDO ${numPedido}\n${new Date().toLocaleString('es-ES')}\n\n${lineas}`;
+  
+  // Mostrar modal con resumen para compartir
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">📄 Resumen del Pedido ${numPedido}</div>
+      <textarea class="nota-area" id="resumen-pedido-txt" readonly style="min-height:150px;background:#f9f9f9">${texto}</textarea>
+      <button class="btn-primary" onclick="compartirPedido('${numPedido}')">📤 Compartir por WhatsApp / Email</button>
+      <button class="btn-primary" style="background:var(--azul);margin-top:8px" onclick="copiarTexto()">📋 Copiar Texto</button>
+      <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function copiarTexto() {
+  const txt = document.getElementById('resumen-pedido-txt')?.value;
+  if (txt) {
+    navigator.clipboard.writeText(txt).then(() => showToast('📋 Texto copiado')).catch(() => {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      showToast('📋 Texto copiado');
+    });
+  }
+}
+
+function compartirPedido(numPedido) {
+  const txt = document.getElementById('resumen-pedido-txt')?.value || '';
+  if (navigator.share) {
+    navigator.share({ title: 'Pedido Farmacia ' + numPedido, text: txt });
+  } else {
+    const url = 'https://wa.me/?text=' + encodeURIComponent(txt);
+    window.open(url, '_blank');
+  }
+}
+
+// ===== HISTORIAL PEDIDOS =====
+function renderHistorialPedidos() {
+  const historial = DB.get('historial_pedidos', []).reverse();
+  const container = document.getElementById('historial-pedidos-list');
+
+  if (historial.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📜</div><div class="empty-text">No hay pedidos registrados.</div></div>`;
+    return;
+  }
+
+  // Agrupar por num_pedido
+  const grupos = {};
+  historial.forEach(h => {
+    if (!grupos[h.num_pedido]) grupos[h.num_pedido] = { fecha: h.fecha, items: [] };
+    grupos[h.num_pedido].items.push(h);
+  });
+
+  container.innerHTML = Object.entries(grupos).map(([numP, g]) => `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:16px;font-weight:900;color:var(--azul-oscuro)">📋 ${numP}</div>
+        <div style="font-size:11px;color:#999">${g.fecha}</div>
+      </div>
+      ${g.items.map(it => `
+        <div class="historial-item">
+          <div class="historial-item-med">💊 ${it.medicamento}</div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <span class="badge badge-amarillo" style="background:#fff9c4;color:#666">Pedido: ${it.botes_pedidos} botes</span>
+            <span class="badge badge-verde">Total: ${Math.round(it.botes_total * 100)/100} botes</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+// ===== CITAS MÉDICAS =====
+function renderCitas() {
+  const citas = DB.get('citas', []).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const container = document.getElementById('citas-list');
+
+  if (citas.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">No hay citas. ¡Añade tu primera!</div></div>`;
+    return;
+  }
+
+  const hoy = new Date().toISOString().split('T')[0];
+  container.innerHTML = citas.map(c => {
+    const pasada = c.fecha < hoy;
+    return `
+    <div class="cita-card" style="${pasada ? 'opacity:0.6;border-left-color:#ccc' : ''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="cita-date">📅 ${formatFecha(c.fecha)} · ${c.hora}</div>
+          <div class="cita-doctor">👨‍⚕️ ${c.profesional}</div>
+          ${c.observaciones ? `<div class="cita-obs">📝 ${c.observaciones}</div>` : ''}
+        </div>
+        ${pasada ? '<span class="badge badge-rojo">Pasada</span>' : '<span class="badge badge-verde">Próxima</span>'}
+      </div>
+      <div class="cita-actions">
+        <button class="btn-sm btn-sm-azul" onclick="editarCita(${c.id})">✏️ Editar</button>
+        <button class="btn-sm btn-sm-rojo" onclick="borrarCita(${c.id})">🗑️ Borrar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function formatFecha(fechaStr) {
+  if (!fechaStr) return '';
+  const [y, m, d] = fechaStr.split('-');
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return `${d} ${meses[parseInt(m)-1]} ${y}`;
+}
+
+function guardarCita() {
+  const prof = document.getElementById('c-prof').value.trim();
+  if (!prof) { showToast('⚠️ Introduce el nombre del médico', 'error'); return; }
+
+  const cita = {
+    id: editingCitaId || nextId(),
+    profesional: prof,
+    fecha: document.getElementById('c-fecha').value,
+    hora: document.getElementById('c-hora').value,
+    observaciones: document.getElementById('c-obs').value.trim()
+  };
+
+  const citas = DB.get('citas', []);
+  if (editingCitaId) {
+    const idx = citas.findIndex(c => c.id === editingCitaId);
+    if (idx >= 0) citas[idx] = cita;
+    showToast('✅ Cita actualizada');
+  } else {
+    citas.push(cita);
+    showToast('✅ Cita añadida');
+  }
+  DB.set('citas', citas);
+  cancelarEditarCita();
+  renderCitas();
+  cargarCitasMini();
+}
+
+function editarCita(id) {
+  const cita = DB.get('citas', []).find(c => c.id === id);
+  if (!cita) return;
+  editingCitaId = id;
+  document.getElementById('c-prof').value = cita.profesional;
+  document.getElementById('c-fecha').value = cita.fecha;
+  document.getElementById('c-hora').value = cita.hora;
+  document.getElementById('c-obs').value = cita.observaciones;
+  document.getElementById('citas-form-title').textContent = '✏️ Editar Cita';
+  document.getElementById('c-btn-guardar').textContent = '💾 Actualizar Cita';
+  document.getElementById('c-btn-guardar').style.background = '#f39c12';
+  document.getElementById('c-btn-cancelar').style.display = 'block';
+  document.getElementById('content').scrollTop = 0;
+}
+
+function cancelarEditarCita() {
+  editingCitaId = null;
+  document.getElementById('c-prof').value = '';
+  document.getElementById('c-fecha').value = '';
+  document.getElementById('c-hora').value = '10:00';
+  document.getElementById('c-obs').value = '';
+  document.getElementById('citas-form-title').textContent = '➕ Nueva Cita';
+  document.getElementById('c-btn-guardar').textContent = '➕ Añadir Cita';
+  document.getElementById('c-btn-guardar').style.background = '';
+  document.getElementById('c-btn-cancelar').style.display = 'none';
+}
+
+function borrarCita(id) {
+  showConfirm('🗑️ Borrar cita', '¿Eliminar esta cita definitivamente?', () => {
+    const citas = DB.get('citas', []).filter(c => c.id !== id);
+    DB.set('citas', citas);
+    showToast('Cita eliminada', 'error');
+    renderCitas();
+    cargarCitasMini();
+  });
+}
+
+// ===== MINI CITAS EN MENÚ =====
+function cargarCitasMini() {
+  const hoy = new Date().toISOString().split('T')[0];
+  const citas = DB.get('citas', [])
+    .filter(c => c.fecha >= hoy)
+    .sort((a,b) => a.fecha.localeCompare(b.fecha))
+    .slice(0, 5);
+
+  const container = document.getElementById('citas-mini-list');
+  if (!container) return;
+
+  if (citas.length === 0) {
+    container.innerHTML = `<span class="sin-citas">Sin citas próximas</span>`;
+    return;
+  }
+
+  container.innerHTML = citas.map(c =>
+    `<div class="cita-chip" onclick="navigate('citas')">📅 ${formatFecha(c.fecha)} - ${c.profesional}</div>`
+  ).join('');
+}
+
+// ===== HISTORIAL MÉDICO =====
+function cargarHistorial() {
+  const notas = DB.get('notas', '');
+  document.getElementById('h-notas').value = notas;
+  renderDocs();
+}
+
+function guardarNotas() {
+  const notas = document.getElementById('h-notas').value;
+  DB.set('notas', notas);
+  showToast('💾 Notas guardadas');
+}
+
+function archivarDocumento() {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">📄 Crear Nota / Documento</div>
+      <div class="form-group">
+        <label class="form-label">Título del documento</label>
+        <input type="text" class="form-input" id="doc-titulo" placeholder="Ej: Analítica Junio 2025"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Contenido</label>
+        <textarea class="form-textarea" id="doc-contenido" placeholder="Escribe el contenido del documento..."></textarea>
+      </div>
+      <button class="btn-primary" onclick="guardarDocumento()">💾 Guardar Documento</button>
+      <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function guardarDocumento() {
+  const titulo = document.getElementById('doc-titulo').value.trim();
+  const contenido = document.getElementById('doc-contenido').value.trim();
+  if (!titulo) { showToast('⚠️ Escribe un título', 'error'); return; }
+
+  const docs = DB.get('docs', []);
+  const fecha = new Date().toLocaleString('es-ES');
+  const prefijo = new Date().toISOString().replace(/[:.]/g,'_').slice(0,16);
+  docs.push({ id: nextId(), nombre: prefijo + '_' + titulo, titulo, contenido, fecha });
+  DB.set('docs', docs);
+  document.querySelector('.modal-overlay')?.remove();
+  showToast('✅ Documento guardado');
+  renderDocs();
+}
+
+function renderDocs() {
+  const docs = DB.get('docs', []);
+  const container = document.getElementById('docs-list');
+  if (!container) return;
+
+  if (docs.length === 0) {
+    container.innerHTML = `<div class="empty-text" style="font-size:13px;color:#aaa;text-align:center;padding:20px">No hay documentos guardados.</div>`;
+    return;
+  }
+
+  container.innerHTML = docs.map(doc => `
+    <div class="doc-item">
+      <div class="doc-icon">📄</div>
+      <div class="doc-name" onclick="verDocumento(${doc.id})" style="cursor:pointer;color:var(--azul-oscuro)">
+        ${doc.titulo}<br><span style="font-size:11px;color:#999;font-weight:400">${doc.fecha}</span>
+      </div>
+      <button class="doc-del" onclick="borrarDoc(${doc.id})">🗑️</button>
+    </div>
+  `).join('');
+}
+
+function verDocumento(id) {
+  const doc = DB.get('docs', []).find(d => d.id === id);
+  if (!doc) return;
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">📄 ${doc.titulo}</div>
+      <p style="font-size:11px;color:#999;margin-bottom:12px">${doc.fecha}</p>
+      <textarea class="nota-area" readonly style="min-height:200px;background:#f9f9f9">${doc.contenido}</textarea>
+      <button class="btn-primary" onclick="compartirDoc(${doc.id})">📤 Compartir</button>
+      <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function compartirDoc(id) {
+  const doc = DB.get('docs', []).find(d => d.id === id);
+  if (!doc) return;
+  const txt = `${doc.titulo}\n${doc.fecha}\n\n${doc.contenido}`;
+  if (navigator.share) {
+    navigator.share({ title: doc.titulo, text: txt });
+  } else {
+    navigator.clipboard.writeText(txt).then(() => showToast('📋 Copiado al portapapeles'));
+  }
+}
+
+function borrarDoc(id) {
+  showConfirm('🗑️ Borrar documento', '¿Eliminar este documento?', () => {
+    const docs = DB.get('docs', []).filter(d => d.id !== id);
+    DB.set('docs', docs);
+    showToast('Documento eliminado', 'error');
+    renderDocs();
+  });
+}
+
+// ===== ALERTAS DE STOCK BAJO =====
+function verificarAlertas() {
+  const meds = DB.get('meds');
+  const alertas = meds.filter(med => {
+    const s = calcularStock(med);
+    return s.iniciado && s.diasRestantes <= 14 && s.diasRestantes >= 0;
+  });
+
+  if (alertas.length > 0) {
+    const nombres = alertas.map(m => m.nombre).join(', ');
+    setTimeout(() => {
+      showToast(`⚠️ Stock bajo: ${alertas.length} medicamento(s)`, 'error');
+    }, 1500);
+  }
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+  initDB();
+  actualizarReloj();
+  setInterval(actualizarReloj, 30000);
+  
+  // Fecha por defecto en citas
+  const hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('c-fecha').value = hoy;
+
+  cargarCitasMini();
+  verificarAlertas();
+
+  // Service Worker para PWA
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+});
+</script>
+</body>
+</html>
