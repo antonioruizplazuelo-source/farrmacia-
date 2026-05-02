@@ -4,65 +4,123 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <meta name="theme-color" content="#2D8B57"/>
+  <link rel="manifest" href="manifest.json">
   <title>FaR-Rmacia</title>
-  <link rel="manifest" href="manifest.json"/>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;900&family=Fira+Code:wght@400;500&display=swap"/>
-  <!-- Aquí iría tu CSS del source 3 -->
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet"/>
   <style>
-    /* (Copia aquí el bloque <style> completo de tu source 3) */
-    .sync-status { font-size: 10px; display: flex; align-items: center; gap: 4px; margin-top: 2px; }
-    #sync-icon { transition: all 0.3s; }
+    :root {
+      --verde: #2D8B57; --verde-vivo: #42B072; --fondo: #F3F0F7;
+      --azul: #5DADE2; --rojo: #E74C3C; --amarillo: #CCFF00;
+      --blanco: #ffffff; --azul-oscuro: #1F4E79; --naranja: #D35400;
+      --radio: 18px; --radio-grande: 28px; --sombra: 0 4px 20px rgba(0,0,0,0.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Nunito', sans-serif; background: var(--fondo); height: 100dvh; overflow: hidden; }
+    
+    #app { height: 100%; display: flex; flex-direction: column; }
+    
+    /* Header con estado de Red */
+    #header {
+      background: linear-gradient(135deg, var(--verde), var(--verde-vivo));
+      color: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+    }
+    #sync-status { display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; margin-top: 2px; }
+    #sync-icon { font-size: 14px; transition: text-shadow 0.3s; }
+
+    /* Navegación y Pantallas */
+    #content { flex: 1; overflow-y: auto; padding-bottom: 20px; }
+    .screen { display: none; padding: 16px; animation: fadeIn 0.3s; }
+    .screen.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* Estilos de Componentes */
+    .card { background: white; border-radius: var(--radio-grande); padding: 16px; margin-bottom: 15px; box-shadow: var(--sombra); }
+    .btn-primary { width: 100%; padding: 14px; background: var(--verde); color: white; border: none; border-radius: 12px; font-weight: 900; cursor: pointer; margin-top: 10px; }
+    .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 800; }
+    .badge-azul { background: #dff0fc; color: var(--azul); }
+    .badge-verde { background: #d4f5e2; color: var(--verde); }
+    
+    /* Bottom Nav */
+    #bottom-nav { background: white; display: flex; border-top: 1px solid #ddd; height: 65px; }
+    .nav-btn { flex: 1; border: none; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #999; }
+    .nav-btn.active { color: var(--verde); }
+    .nav-icon { font-size: 20px; margin-bottom: 2px; }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); padding: 10px 20px; border-radius: 20px; color: white; font-weight: 700; z-index: 1000; opacity: 0; pointer-events: none; transition: 0.3s; }
+    #toast.show { opacity: 1; }
   </style>
 </head>
 <body>
 <div id="app">
   <div id="header">
-    <button id="btn-back" onclick="goBack()">←</button>
-    <div>
-      <div id="header-title">💊 FaR-Rmacia</div>
-      <div id="header-sub">Gestión de medicamentos</div>
-      <div class="sync-status">
-        <span id="sync-icon">●</span> <span id="sync-text">Cargando...</span>
+    <button id="btn-back" onclick="goBack()" style="display:none; background:none; border:none; color:white; font-size:20px; margin-right:10px;">←</button>
+    <div style="flex:1">
+      <div id="header-title" style="font-weight:900; font-size:18px;">💊 FaR-Rmacia</div>
+      <div id="sync-status">
+        <span id="sync-icon">●</span> <span id="sync-text">Conectando...</span>
       </div>
     </div>
-    <div id="header-clock"></div>
+    <div id="header-clock" style="font-family:'Fira Code'; font-size:12px; text-align:right;"></div>
   </div>
 
   <div id="content">
-    <!-- Pantallas (Menu, Inventario, Pedidos, Citas, Historial, Modificar, etc.) -->
-    <!-- (Copia aquí los bloques <div id="screen-xxx"> de tu source 3) -->
+    <!-- Pantalla Inicio -->
+    <div id="screen-menu" class="screen active">
+        <div style="text-align:center; padding: 20px 0;">
+            <h1 style="font-size:40px; color:var(--verde-vivo)">FaR-<span style="color:var(--azul-oscuro)">Rmacia</span></h1>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:10px">📅 Próximas Citas</h3>
+            <div id="citas-mini-list"></div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px">
+            <div class="card" onclick="navigate('inventario')" style="text-align:center">📦<br>Stock</div>
+            <div class="card" onclick="navigate('pedidos')" style="text-align:center">🛒<br>Pedidos</div>
+            <div class="card" onclick="navigate('citas')" style="text-align:center">📅<br>Citas</div>
+            <div class="card" onclick="navigate('historial')" style="text-align:center">📁<br>Historial</div>
+        </div>
+    </div>
+
+    <!-- Pantalla Inventario -->
+    <div id="screen-inventario" class="screen">
+        <h2>📦 Mi Inventario</h2>
+        <div id="inventario-list"></div>
+    </div>
+
+    <!-- Pantalla Nuevo Med -->
+    <div id="screen-medicamentos" class="screen">
+        <h2>➕ Nuevo Medicamento</h2>
+        <div class="card">
+            <input type="text" id="f-nombre" class="btn-primary" style="background:white; color:black; border:1px solid #ddd" placeholder="Nombre">
+            <input type="number" id="f-bote" class="btn-primary" style="background:white; color:black; border:1px solid #ddd" placeholder="Unidades por bote">
+            <input type="number" id="f-dosis" class="btn-primary" style="background:white; color:black; border:1px solid #ddd" placeholder="Tomas al día" step="0.5">
+            <input type="number" id="f-stock" class="btn-primary" style="background:white; color:black; border:1px solid #ddd" placeholder="Botes actuales">
+            <button class="btn-primary" onclick="guardarMedicamento()">GUARDAR</button>
+        </div>
+    </div>
+
+    <!-- Pantalla Pedidos -->
+    <div id="screen-pedidos" class="screen">
+        <h2>🛒 Sugerencia de Pedido</h2>
+        <div id="pedidos-list"></div>
+        <button class="btn-primary" onclick="confirmarPedido()">CONFIRMAR PEDIDO</button>
+    </div>
+    
+    <!-- Resto de pantallas (Citas, Historial, etc.) se mantienen similares -->
+    <div id="screen-citas" class="screen"><h2>📅 Citas</h2><div id="citas-list"></div></div>
+    <div id="screen-historial" class="screen"><h2>📁 Historial</h2><textarea id="h-notas" style="width:100%; height:200px; border-radius:10px; padding:10px"></textarea></div>
   </div>
 
   <nav id="bottom-nav">
-    <button class="nav-btn active" data-nav="menu" onclick="navigate('menu')"><span class="nav-icon">🏠</span>Inicio</button>
-    <button class="nav-btn" data-nav="inventario" onclick="navigate('inventario')"><span class="nav-icon">📦</span>Stock</button>
-    <button class="nav-btn" data-nav="pedidos" onclick="navigate('pedidos')"><span class="nav-icon">🛒</span>Pedidos</button>
-    <button class="nav-btn" data-nav="citas" onclick="navigate('citas')"><span class="nav-icon">📅</span>Citas</button>
-    <button class="nav-btn" data-nav="historial" onclick="navigate('historial')"><span class="nav-icon">📁</span>Historial</button>
+    <button class="nav-btn active" onclick="navigate('menu')"><span class="nav-icon">🏠</span>Inicio</button>
+    <button class="nav-btn" onclick="navigate('inventario')"><span class="nav-icon">📦</span>Stock</button>
+    <button class="nav-btn" onclick="navigate('pedidos')"><span class="nav-icon">🛒</span>Pedidos</button>
+    <button class="nav-btn" onclick="navigate('citas')"><span class="nav-icon">📅</span>Citas</button>
   </nav>
 </div>
 
-<button id="fab" onclick="fabAction()">+</button>
 <div id="toast"></div>
-
-<!-- FIREBASE CONFIG (Asegúrate de poner tus claves reales aquí) -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "TU_API_KEY",
-    authDomain: "tu-app.firebaseapp.com",
-    projectId: "tu-app",
-    storageBucket: "tu-app.appspot.com",
-    messagingSenderId: "123",
-    appId: "1:123:web:abc"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  window.db = getFirestore(app); // Hacemos db global para app.js
-</script>
-
 <script src="app.js"></script>
 </body>
 </html>
