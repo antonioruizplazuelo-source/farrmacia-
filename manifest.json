@@ -1,7 +1,7 @@
 {
   "name": "FaR-Rmacia",
   "short_name": "FaRRmacia",
-  "description": "Gestión de medicamentos, stock, citas e historial médico",
+  "description": "Gestión inteligente de stock médico, citas y sincronización en la nube",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
