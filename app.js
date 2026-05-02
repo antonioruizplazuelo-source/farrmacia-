@@ -1,6 +1,23 @@
 // =============================================
-// FaR-Rmacia - App Logic (app.js)
+// FaR-Rmacia - App Logic v2.0
+// Mejoras: Firebase sync, lazo morado, fotos,
+// notificaciones citas, gestos swipe,
+// compartir pedidos, informes mejorados,
+// subir archivos en historial
 // =============================================
+
+// ===== FIREBASE CONFIG =====
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDoGBiEghMRHxYSL7l_gSXF-qBp0Lb_WTU",
+  authDomain: "far-rmacia.firebaseapp.com",
+  projectId: "far-rmacia",
+  storageBucket: "far-rmacia.firebasestorage.app",
+  messagingSenderId: "462585209909",
+  appId: "1:462585209909:web:e093a33ebae8c9fe6fbd7c"
+};
+
+const FIREBASE_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_CONFIG.projectId}/databases/(default)/documents`;
+const USER_ID = 'antonio'; // identificador de usuario
 
 // ===== BASE DE DATOS (localStorage) =====
 const DB = {
@@ -10,10 +27,224 @@ const DB = {
   },
   set(key, val) {
     localStorage.setItem('farrmacia_' + key, JSON.stringify(val));
+    // Marcar que hay cambios pendientes de sincronizar
+    localStorage.setItem('farrmacia_pendingSync', 'true');
   }
 };
 
-// Inicializar datos de ejemplo si está vacío
+// ===== SINCRONIZACIÓN FIREBASE =====
+let syncInProgress = false;
+
+function firestoreValue(val) {
+  if (val === null || val === undefined) return { nullValue: null };
+  if (typeof val === 'boolean') return { booleanValue: val };
+  if (typeof val === 'number') return { doubleValue: val };
+  if (typeof val === 'string') return { stringValue: val };
+  if (Array.isArray(val)) return { arrayValue: { values: val.map(firestoreValue) } };
+  if (typeof val === 'object') {
+    const fields = {};
+    for (const k in val) fields[k] = firestoreValue(val[k]);
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(val) };
+}
+
+function parseFirestoreValue(v) {
+  if (!v) return null;
+  if ('nullValue' in v) return null;
+  if ('booleanValue' in v) return v.booleanValue;
+  if ('doubleValue' in v) return v.doubleValue;
+  if ('integerValue' in v) return parseInt(v.integerValue);
+  if ('stringValue' in v) return v.stringValue;
+  if ('arrayValue' in v) return (v.arrayValue.values || []).map(parseFirestoreValue);
+  if ('mapValue' in v) {
+    const obj = {};
+    for (const k in v.mapValue.fields) obj[k] = parseFirestoreValue(v.mapValue.fields[k]);
+    return obj;
+  }
+  return null;
+}
+
+async function syncToFirebase() {
+  if (syncInProgress) return;
+  syncInProgress = true;
+  const btn = document.getElementById('btn-sync');
+  btn?.classList.add('syncing');
+
+  try {
+    const data = {
+      meds: DB.get('meds', []),
+      citas: DB.get('citas', []),
+      historial_pedidos: DB.get('historial_pedidos', []),
+      notas: DB.get('notas', ''),
+      nextId: DB.get('nextId', 100),
+      nextPedidoId: DB.get('nextPedidoId', 1),
+      docs: DB.get('docs', []).map(d => ({ ...d, contenido: d.contenido || '', base64: undefined })), // sin base64 en cloud
+      ultimaSincro: new Date().toISOString()
+    };
+
+    const fields = {};
+    for (const k in data) fields[k] = firestoreValue(data[k]);
+
+    const url = `${FIREBASE_BASE}/usuarios/${USER_ID}`;
+    const resp = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields })
+    });
+
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+    localStorage.removeItem('farrmacia_pendingSync');
+    showToast('☁️ Sincronizado con Firebase', 'success');
+    actualizarEstadoSync(true);
+  } catch (err) {
+    console.error('Sync error:', err);
+    showToast('⚠️ Error al sincronizar: ' + err.message, 'error');
+    actualizarEstadoSync(false, err.message);
+  } finally {
+    syncInProgress = false;
+    btn?.classList.remove('syncing');
+  }
+}
+
+async function syncFromFirebase() {
+  const btn = document.getElementById('btn-sync');
+  btn?.classList.add('syncing');
+  try {
+    const url = `${FIREBASE_BASE}/usuarios/${USER_ID}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
+    if (!json.fields) throw new Error('Sin datos en Firebase');
+
+    const data = {};
+    for (const k in json.fields) data[k] = parseFirestoreValue(json.fields[k]);
+
+    // Restaurar en localStorage
+    if (data.meds) localStorage.setItem('farrmacia_meds', JSON.stringify(data.meds));
+    if (data.citas) localStorage.setItem('farrmacia_citas', JSON.stringify(data.citas));
+    if (data.historial_pedidos) localStorage.setItem('farrmacia_historial_pedidos', JSON.stringify(data.historial_pedidos));
+    if (data.notas !== undefined) localStorage.setItem('farrmacia_notas', JSON.stringify(data.notas));
+    if (data.nextId) localStorage.setItem('farrmacia_nextId', JSON.stringify(data.nextId));
+    if (data.nextPedidoId) localStorage.setItem('farrmacia_nextPedidoId', JSON.stringify(data.nextPedidoId));
+    if (data.docs) localStorage.setItem('farrmacia_docs', JSON.stringify(data.docs));
+    localStorage.removeItem('farrmacia_pendingSync');
+
+    showToast('✅ Datos restaurados de Firebase', 'success');
+    // Recargar pantalla actual
+    navigate(currentScreen);
+    cargarCitasMini();
+  } catch (err) {
+    showToast('⚠️ Error al cargar: ' + err.message, 'error');
+  } finally {
+    btn?.classList.remove('syncing');
+  }
+}
+
+function actualizarEstadoSync(ok, msg) {
+  const bar = document.getElementById('sync-status-bar');
+  if (!bar) return;
+  if (ok) {
+    bar.style.display = 'flex';
+    bar.className = 'sync-bar';
+    bar.innerHTML = `☁️ <span>Sincronizado – ${new Date().toLocaleTimeString('es-ES')}</span>`;
+    setTimeout(() => bar.style.display = 'none', 4000);
+  } else {
+    bar.style.display = 'flex';
+    bar.className = 'sync-bar error';
+    bar.innerHTML = `❌ <span>Sin sincronizar${msg ? ': ' + msg : ''}</span>`;
+  }
+}
+
+function abrirSyncPanel() {
+  const hasPending = localStorage.getItem('farrmacia_pendingSync') === 'true';
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">☁️ Firebase & Backup</div>
+      <div style="background:#f0f8ff;border-radius:12px;padding:12px;margin-bottom:16px;font-size:13px;color:#555">
+        <strong>Estado:</strong> ${hasPending ? '⚠️ Hay cambios pendientes de subir' : '✅ Todo sincronizado'}<br>
+        <strong>Usuario:</strong> ${USER_ID}
+      </div>
+      <button class="btn-primary" onclick="syncToFirebase();this.closest('.modal-overlay').remove()">
+        ☁️ Subir datos a Firebase
+      </button>
+      <button class="btn-primary" style="background:var(--azul);margin-top:8px" onclick="syncFromFirebase();this.closest('.modal-overlay').remove()">
+        📥 Descargar desde Firebase
+      </button>
+      <hr style="margin:14px 0;border:none;border-top:1px solid #eee"/>
+      <div class="card-header" style="margin-bottom:10px">💾 Backup Local</div>
+      <button class="btn-secondary" style="margin-top:0" onclick="exportarBackup();this.closest('.modal-overlay').remove()">
+        📤 Exportar Backup (JSON)
+      </button>
+      <button class="btn-secondary" style="margin-top:8px" onclick="importarBackup()">
+        📥 Importar Backup (JSON)
+      </button>
+      <input type="file" id="import-backup-input" accept=".json" style="display:none" onchange="procesarImportBackup(event)"/>
+      <button class="btn-secondary" style="margin-top:8px" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+function exportarBackup() {
+  const backup = {
+    version: 2,
+    fecha: new Date().toISOString(),
+    meds: DB.get('meds', []),
+    citas: DB.get('citas', []),
+    historial_pedidos: DB.get('historial_pedidos', []),
+    notas: DB.get('notas', ''),
+    docs: DB.get('docs', []),
+    nextId: DB.get('nextId', 100),
+    nextPedidoId: DB.get('nextPedidoId', 1)
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `farrmacia_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ Backup exportado');
+}
+
+function importarBackup() {
+  document.getElementById('import-backup-input')?.click();
+}
+
+function procesarImportBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      showConfirm('📥 Importar Backup', '¿Sobrescribir todos los datos actuales con el backup?', () => {
+        if (data.meds) DB.set('meds', data.meds);
+        if (data.citas) DB.set('citas', data.citas);
+        if (data.historial_pedidos) DB.set('historial_pedidos', data.historial_pedidos);
+        if (data.notas !== undefined) DB.set('notas', data.notas);
+        if (data.docs) DB.set('docs', data.docs);
+        if (data.nextId) DB.set('nextId', data.nextId);
+        if (data.nextPedidoId) DB.set('nextPedidoId', data.nextPedidoId);
+        showToast('✅ Backup importado correctamente', 'success');
+        navigate(currentScreen);
+        cargarCitasMini();
+      });
+    } catch(err) {
+      showToast('❌ Error al leer el backup', 'error');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ===== INICIALIZAR DATOS =====
 function initDB() {
   if (DB.get('meds').length === 0) {
     DB.set('meds', [
@@ -31,6 +262,96 @@ function nextId() {
   return n;
 }
 
+// ===== GESTOS SWIPE =====
+const NAV_ORDER = ['menu', 'inventario', 'pedidos', 'citas', 'historial'];
+let swipeStartX = 0, swipeStartY = 0;
+
+function initSwipeGestures() {
+  const content = document.getElementById('content');
+  content.addEventListener('touchstart', e => {
+    swipeStartX = e.touches[0].clientX;
+    swipeStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  content.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - swipeStartX;
+    const dy = e.changedTouches[0].clientY - swipeStartY;
+    // Solo swipe horizontal (más horizontal que vertical)
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+
+    const idx = NAV_ORDER.indexOf(currentScreen);
+    if (idx < 0) return; // pantallas secundarias no navegan por swipe
+
+    if (dx < 0 && idx < NAV_ORDER.length - 1) {
+      // Swipe izquierda → siguiente
+      navigate(NAV_ORDER[idx + 1]);
+    } else if (dx > 0 && idx > 0) {
+      // Swipe derecha → anterior
+      navigate(NAV_ORDER[idx - 1]);
+    }
+  }, { passive: true });
+}
+
+// ===== FOTO MEDICAMENTO =====
+let fotoTemporal = { f: null, m: null }; // prefijo 'f' = nuevo, 'm' = modificar
+
+function seleccionarFoto(prefix) {
+  document.getElementById(prefix + '-foto-input')?.click();
+}
+
+function procesarFoto(event, prefix) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const base64 = e.target.result;
+    fotoTemporal[prefix] = base64;
+    const prev = document.getElementById(prefix + '-foto-prev');
+    if (prev) {
+      prev.className = 'foto-preview';
+      prev.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = base64;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:12px';
+      prev.appendChild(img);
+    }
+    const delBtn = document.getElementById(prefix + '-foto-del-btn');
+    if (delBtn) delBtn.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function borrarFoto(prefix) {
+  fotoTemporal[prefix] = '';
+  const prev = document.getElementById(prefix + '-foto-prev');
+  if (prev) {
+    prev.className = 'foto-preview empty';
+    prev.innerHTML = '📷';
+  }
+  const delBtn = document.getElementById(prefix + '-foto-del-btn');
+  if (delBtn) delBtn.style.display = 'none';
+}
+
+function mostrarFotoPrev(prefix, fotoBase64) {
+  const prev = document.getElementById(prefix + '-foto-prev');
+  const delBtn = document.getElementById(prefix + '-foto-del-btn');
+  if (!prev) return;
+  if (fotoBase64) {
+    prev.className = 'foto-preview';
+    prev.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = fotoBase64;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:12px';
+    prev.appendChild(img);
+    if (delBtn) delBtn.style.display = 'block';
+  } else {
+    prev.className = 'foto-preview empty';
+    prev.innerHTML = '📷';
+    if (delBtn) delBtn.style.display = 'none';
+  }
+}
+
 // ===== NAVEGACIÓN =====
 let currentScreen = 'menu';
 let navHistory = [];
@@ -39,16 +360,12 @@ let editingMedId = null;
 let pedidoItems = [];
 
 function navigate(screen) {
-  // Guardar en historial
   if (currentScreen !== screen) navHistory.push(currentScreen);
-
   currentScreen = screen;
 
-  // Ocultar todas
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + screen)?.classList.add('active');
 
-  // Header
   const titles = {
     'menu': { title: '💊 FaR-Rmacia', sub: 'Tu farmacia personal', back: false },
     'inventario': { title: '📦 Stock e Inventario', sub: '', back: true },
@@ -64,25 +381,19 @@ function navigate(screen) {
   document.getElementById('header-sub').textContent = t.sub;
   document.getElementById('btn-back').classList.toggle('visible', t.back);
 
-  // Actualizar nav
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.nav === screen);
   });
 
-  // FAB
-  const fabScreens = ['inventario', 'citas', 'medicamentos'];
   const fab = document.getElementById('fab');
   if (screen === 'inventario' || screen === 'medicamentos') {
-    fab.textContent = '+';
-    fab.classList.add('visible');
+    fab.textContent = '+'; fab.classList.add('visible');
   } else if (screen === 'citas') {
-    fab.textContent = '+';
-    fab.classList.add('visible');
+    fab.textContent = '+'; fab.classList.add('visible');
   } else {
     fab.classList.remove('visible');
   }
 
-  // Cargar datos de cada pantalla
   switch(screen) {
     case 'menu': cargarCitasMini(); break;
     case 'inventario': renderInventario(); break;
@@ -90,16 +401,19 @@ function navigate(screen) {
     case 'citas': renderCitas(); break;
     case 'historial': cargarHistorial(); break;
     case 'historial-pedidos': renderHistorialPedidos(); break;
+    case 'medicamentos':
+      fotoTemporal['f'] = null;
+      mostrarFotoPrev('f', null);
+      break;
   }
 
-  // Scroll al top
   document.getElementById('content').scrollTop = 0;
 }
 
 function goBack() {
   if (navHistory.length > 0) {
     navigate(navHistory.pop());
-    navHistory.pop(); // quitar el que acaba de añadir navigate
+    navHistory.pop();
   } else {
     navigate('menu');
   }
@@ -130,7 +444,7 @@ function showToast(msg, type = 'success') {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'show ' + type;
-  setTimeout(() => t.className = '', 2500);
+  setTimeout(() => t.className = '', 2800);
 }
 
 // ===== CONFIRM =====
@@ -157,7 +471,6 @@ function calcularStock(med) {
   const tomaDia = parseFloat(med.dosis_dia || 0);
   const botesIni = parseFloat(med.stock_real || 0);
   const fechaIni = med.fecha_inicio;
-
   const dosisTotal = botesIni * unidBote;
 
   if (fechaIni && tomaDia > 0) {
@@ -191,7 +504,6 @@ function colorDias(dias) {
 function renderInventario() {
   const meds = DB.get('meds');
   const container = document.getElementById('inventario-list');
-
   if (meds.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">No hay medicamentos.<br>Pulsa + para añadir uno.</div></div>`;
     return;
@@ -199,16 +511,18 @@ function renderInventario() {
 
   container.innerHTML = meds.map(med => {
     const s = calcularStock(med);
-    const pct = s.iniciado
-      ? Math.min(100, Math.round((s.diasRestantes / 90) * 100))
-      : 100;
+    const pct = s.iniciado ? Math.min(100, Math.round((s.diasRestantes / 90) * 100)) : 100;
     const colorBar = colorDias(s.diasRestantes);
     const tiempoTxt = s.iniciado ? formatTiempo(s.diasRestantes) : "▶️ Pulsa 'Iniciar'";
     const pedidoTxt = med.incluir_pedido ? '✅ Incluido en pedidos' : '❌ Excluido de pedidos';
     const pedidoCls = med.incluir_pedido ? 'incluido' : 'excluido';
+    const fotoHtml = med.foto
+      ? `<img src="${med.foto}" class="med-thumb" onclick="event.stopPropagation();verFotoMed('${med.id}')" alt="foto"/>`
+      : '';
 
     return `
     <div class="med-card" onclick="abrirModificar(${med.id})">
+      ${fotoHtml}
       <div class="med-card-name">💊 ${med.nombre.toUpperCase()}</div>
       <div style="display:flex;gap:8px;margin:4px 0;flex-wrap:wrap">
         <span class="badge badge-azul">${s.botesCalc} botes</span>
@@ -228,10 +542,29 @@ function renderInventario() {
   }).join('');
 }
 
+function verFotoMed(id) {
+  const med = DB.get('meds').find(m => m.id == id);
+  if (!med || !med.foto) return;
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-sheet" style="text-align:center">
+      <div class="modal-handle"></div>
+      <div class="modal-title">📷 ${med.nombre}</div>
+      <img src="${med.foto}" style="max-width:100%;border-radius:14px;margin-bottom:16px"/>
+      <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
 // ===== AÑADIR MEDICAMENTO =====
 function limpiarFormulario() {
   ['f-nombre','f-bote','f-dosis','f-stock','f-obs'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-incluir').checked = true;
+  fotoTemporal['f'] = null;
+  mostrarFotoPrev('f', null);
 }
 
 function guardarMedicamento() {
@@ -245,7 +578,7 @@ function guardarMedicamento() {
     dosis_dia: parseFloat(document.getElementById('f-dosis').value) || 0,
     stock_real: parseFloat(document.getElementById('f-stock').value) || 0,
     observaciones: document.getElementById('f-obs').value.trim(),
-    foto: '',
+    foto: fotoTemporal['f'] || '',
     fecha_inicio: '',
     incluir_pedido: document.getElementById('f-incluir').checked ? 1 : 0
   };
@@ -308,6 +641,10 @@ function abrirModificar(id) {
   document.getElementById('m-fecha').value = med.fecha_inicio || '';
   document.getElementById('m-incluir').checked = med.incluir_pedido === 1;
 
+  // Cargar foto actual
+  fotoTemporal['m'] = med.foto || null;
+  mostrarFotoPrev('m', med.foto || null);
+
   document.getElementById('m-guardar').onclick = () => actualizarMed(id);
   document.getElementById('m-borrar').onclick = () => borrarMed(id);
 
@@ -321,6 +658,9 @@ function actualizarMed(id) {
 
   const nuevoStock = parseFloat(document.getElementById('m-stock').value) || 0;
   const unidBote = parseFloat(document.getElementById('m-bote').value) || 1;
+  // Si fotoTemporal['m'] es null conservamos la existente, si es '' borramos, si tiene valor actualizamos
+  const fotoFinal = fotoTemporal['m'] === null ? meds[idx].foto : (fotoTemporal['m'] || '');
+
   meds[idx] = {
     ...meds[idx],
     nombre: document.getElementById('m-nombre').value.trim(),
@@ -329,7 +669,8 @@ function actualizarMed(id) {
     stock_real: nuevoStock,
     observaciones: document.getElementById('m-obs').value.trim(),
     fecha_inicio: document.getElementById('m-fecha').value || '',
-    incluir_pedido: document.getElementById('m-incluir').checked ? 1 : 0
+    incluir_pedido: document.getElementById('m-incluir').checked ? 1 : 0,
+    foto: fotoFinal
   };
 
   DB.set('meds', meds);
@@ -423,9 +764,7 @@ function _ejecutarCalculo(dias) {
     const necesito = item.tomaDia * dias;
     const tengo = item.botesCalc * item.unidBote;
     const falta = Math.max(0, necesito - tengo);
-    const botes = item.unidBote > 0
-      ? Math.ceil(falta / item.unidBote)
-      : 0;
+    const botes = item.unidBote > 0 ? Math.ceil(falta / item.unidBote) : 0;
     document.getElementById('qty-' + i).value = botes;
     pedidoItems[i].qty = botes;
     actualizarFuturo(i);
@@ -440,7 +779,7 @@ function confirmarPedido() {
   showConfirm('✅ Confirmar Pedido', `¿Actualizar el stock con ${conCantidad.length} medicamento(s)?`, () => {
     const meds = DB.get('meds');
     const historial = DB.get('historial_pedidos', []);
-    const numPedido = 'P' + String(DB.get('nextPedidoId', 1)).padStart(4, '0');
+    const numPedido = 'PED-' + new Date().toISOString().slice(0,10).replace(/-/g,'') + '-' + String(DB.get('nextPedidoId', 1)).padStart(3, '0');
     DB.set('nextPedidoId', (DB.get('nextPedidoId', 1) + 1));
     const fecha = new Date().toLocaleString('es-ES');
 
@@ -448,18 +787,18 @@ function confirmarPedido() {
       if (item.qty <= 0 || !item.incluir_pedido) return;
       const idx = meds.findIndex(m => m.id === item.id);
       if (idx >= 0) {
-        const stockAnterior = parseFloat(meds[idx].stock_real) || 0;
         const nuevoStock = item.botesCalc + item.qty;
         meds[idx].stock_real = nuevoStock;
-        if (!meds[idx].fecha_inicio) meds[idx].fecha_inicio = '';
-
         historial.push({
           id: nextId(),
           fecha,
           num_pedido: numPedido,
           medicamento: item.nombre,
           botes_pedidos: item.qty,
-          botes_total: nuevoStock
+          botes_total: nuevoStock,
+          dias_restantes_tras_pedido: item.tomaDia > 0 && item.unidBote > 0
+            ? Math.floor((item.dosisActuales + item.qty * item.unidBote) / item.tomaDia)
+            : 0
         });
       }
     });
@@ -467,50 +806,86 @@ function confirmarPedido() {
     DB.set('meds', meds);
     DB.set('historial_pedidos', historial);
     showToast(`✅ Pedido ${numPedido} confirmado`);
-    generarResumenPedido(numPedido, conCantidad);
+    mostrarResumenPedidoMejorado(numPedido, fecha, conCantidad);
     navigate('inventario');
   });
 }
 
-function generarResumenPedido(numPedido, items) {
-  const lineas = items.map(it => `• ${it.nombre}: ${it.qty} botes`).join('\n');
-  const texto = `PEDIDO ${numPedido}\n${new Date().toLocaleString('es-ES')}\n\n${lineas}`;
-  
-  // Mostrar modal con resumen para compartir
+// ===== RESUMEN PEDIDO MEJORADO (estilo informe) =====
+function mostrarResumenPedidoMejorado(numPedido, fecha, items) {
+  // Calcular días/meses tras pedido para cada item
+  const filas = items.map(it => {
+    const diasTras = it.tomaDia > 0 && it.unidBote > 0
+      ? Math.floor((it.dosisActuales + it.qty * it.unidBote) / it.tomaDia)
+      : 0;
+    const mesesTras = (diasTras / 30).toFixed(1);
+    return { nombre: it.nombre, qty: it.qty, stockTras: Math.round((it.botesCalc + it.qty) * 10) / 10, diasTras, mesesTras };
+  });
+
+  const tablaHtml = `
+    <table class="resumen-table">
+      <thead>
+        <tr>
+          <th>Medicamento</th>
+          <th style="text-align:center">Pedir</th>
+          <th style="text-align:center">Stock</th>
+          <th style="text-align:center">Total</th>
+          <th>Meses/Días</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filas.map(f => `
+          <tr>
+            <td>${f.nombre}</td>
+            <td class="qty-cell">${f.qty}</td>
+            <td style="text-align:center">${f.stockTras - f.qty}</td>
+            <td style="text-align:center;font-weight:900">${f.stockTras}</td>
+            <td class="dias-cell">${f.diasTras} días | ${f.mesesTras} mes.</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+
+  // Texto plano para compartir
+  const textoCompartir = `PEDIDO ${numPedido}\n${fecha}\n\n` +
+    `Medicamento          Pedir  Stock  Total  Meses/Días\n` +
+    `${'─'.repeat(60)}\n` +
+    filas.map(f => `${f.nombre.padEnd(20)} ${String(f.qty).padStart(5)}  ${String(f.stockTras - f.qty).padStart(5)}  ${String(f.stockTras).padStart(5)}  ${f.diasTras} días | ${f.mesesTras} mes.`).join('\n');
+
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
   modal.innerHTML = `
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div class="modal-title">📄 Resumen del Pedido ${numPedido}</div>
-      <textarea class="nota-area" id="resumen-pedido-txt" readonly style="min-height:150px;background:#f9f9f9">${texto}</textarea>
-      <button class="btn-primary" onclick="compartirPedido('${numPedido}')">📤 Compartir por WhatsApp / Email</button>
-      <button class="btn-primary" style="background:var(--azul);margin-top:8px" onclick="copiarTexto()">📋 Copiar Texto</button>
-      <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="modal-title" style="margin-bottom:0">📋 ${numPedido}</div>
+        <span style="font-size:11px;color:#999">${fecha}</span>
+      </div>
+      <p style="font-size:12px;color:#999;margin-bottom:10px">Resumen de Pedido (tipo Excel)</p>
+      ${tablaHtml}
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn-primary" style="flex:1;margin-top:0;font-size:14px" onclick="compartirResumenPedido(${JSON.stringify(textoCompartir).replace(/"/g,'&quot;')}, '${numPedido}')">
+          📤 Compartir
+        </button>
+        <button class="btn-secondary" style="flex:1;margin-top:0;font-size:14px" onclick="copiarResumenPedido(this)">
+          📋 Copiar
+        </button>
+      </div>
+      <button class="btn-secondary" style="margin-top:8px" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
     </div>
   `;
+  // Guardar texto para copiar/compartir
+  modal._textoCompartir = textoCompartir;
+  modal._numPedido = numPedido;
   document.body.appendChild(modal);
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
-function copiarTexto() {
-  const txt = document.getElementById('resumen-pedido-txt')?.value;
-  if (txt) {
-    navigator.clipboard.writeText(txt).then(() => showToast('📋 Texto copiado')).catch(() => {
-      // fallback
-      const ta = document.createElement('textarea');
-      ta.value = txt;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      ta.remove();
-      showToast('📋 Texto copiado');
-    });
-  }
-}
-
-function compartirPedido(numPedido) {
-  const txt = document.getElementById('resumen-pedido-txt')?.value || '';
+function compartirResumenPedido(texto, numPedido) {
+  // Usar el texto del modal más cercano si está disponible
+  const modal = document.querySelector('.modal-overlay');
+  const txt = (modal && modal._textoCompartir) ? modal._textoCompartir : texto;
   if (navigator.share) {
     navigator.share({ title: 'Pedido Farmacia ' + numPedido, text: txt });
   } else {
@@ -519,7 +894,17 @@ function compartirPedido(numPedido) {
   }
 }
 
-// ===== HISTORIAL PEDIDOS =====
+function copiarResumenPedido(btn) {
+  const modal = btn.closest('.modal-overlay');
+  const txt = modal?._textoCompartir || '';
+  navigator.clipboard.writeText(txt).then(() => showToast('📋 Copiado')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove(); showToast('📋 Copiado');
+  });
+}
+
+// ===== HISTORIAL PEDIDOS CON COMPARTIR =====
 function renderHistorialPedidos() {
   const historial = DB.get('historial_pedidos', []).reverse();
   const container = document.getElementById('historial-pedidos-list');
@@ -529,7 +914,6 @@ function renderHistorialPedidos() {
     return;
   }
 
-  // Agrupar por num_pedido
   const grupos = {};
   historial.forEach(h => {
     if (!grupos[h.num_pedido]) grupos[h.num_pedido] = { fecha: h.fecha, items: [] };
@@ -540,19 +924,43 @@ function renderHistorialPedidos() {
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="font-size:16px;font-weight:900;color:var(--azul-oscuro)">📋 ${numP}</div>
-        <div style="font-size:11px;color:#999">${g.fecha}</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div style="font-size:11px;color:#999">${g.fecha}</div>
+          <button class="btn-sm btn-sm-verde" onclick="compartirPedidoHistorial('${numP}')">📤</button>
+        </div>
       </div>
       ${g.items.map(it => `
         <div class="historial-item">
           <div class="historial-item-med">💊 ${it.medicamento}</div>
-          <div style="display:flex;gap:8px;margin-top:4px">
-            <span class="badge badge-amarillo" style="background:#fff9c4;color:#666">Pedido: ${it.botes_pedidos} botes</span>
+          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+            <span class="badge badge-amarillo">Pedido: ${it.botes_pedidos} botes</span>
             <span class="badge badge-verde">Total: ${Math.round(it.botes_total * 100)/100} botes</span>
+            ${it.dias_restantes_tras_pedido ? `<span class="badge badge-azul">${it.dias_restantes_tras_pedido} días</span>` : ''}
           </div>
         </div>
       `).join('')}
     </div>
   `).join('');
+}
+
+function compartirPedidoHistorial(numPedido) {
+  const historial = DB.get('historial_pedidos', []);
+  const items = historial.filter(h => h.num_pedido === numPedido);
+  if (items.length === 0) return;
+  const fecha = items[0].fecha;
+
+  const texto = `PEDIDO ${numPedido}\n${fecha}\n\n` +
+    `Medicamento          Pedir  Total  Días\n` +
+    `${'─'.repeat(50)}\n` +
+    items.map(it =>
+      `${it.medicamento.padEnd(20)} ${String(it.botes_pedidos).padStart(5)}  ${String(Math.round(it.botes_total*10)/10).padStart(5)}  ${it.dias_restantes_tras_pedido || '-'}`
+    ).join('\n');
+
+  if (navigator.share) {
+    navigator.share({ title: 'Pedido ' + numPedido, text: texto });
+  } else {
+    navigator.clipboard.writeText(texto).then(() => showToast('📋 Copiado al portapapeles'));
+  }
 }
 
 // ===== CITAS MÉDICAS =====
@@ -566,24 +974,42 @@ function renderCitas() {
   }
 
   const hoy = new Date().toISOString().split('T')[0];
+  const manana = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
   container.innerHTML = citas.map(c => {
     const pasada = c.fecha < hoy;
+    const esManana = c.fecha === manana;
+    let cardClass = 'cita-card';
+    if (esManana) cardClass += ' manana';
     return `
-    <div class="cita-card" style="${pasada ? 'opacity:0.6;border-left-color:#ccc' : ''}">
+    <div class="${cardClass}" style="${pasada ? 'opacity:0.6;border-left-color:#ccc' : ''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
           <div class="cita-date">📅 ${formatFecha(c.fecha)} · ${c.hora}</div>
           <div class="cita-doctor">👨‍⚕️ ${c.profesional}</div>
           ${c.observaciones ? `<div class="cita-obs">📝 ${c.observaciones}</div>` : ''}
+          ${esManana ? `<div style="color:var(--rojo);font-size:12px;font-weight:900;margin-top:4px">⚠️ ¡MAÑANA!</div>` : ''}
         </div>
-        ${pasada ? '<span class="badge badge-rojo">Pasada</span>' : '<span class="badge badge-verde">Próxima</span>'}
+        ${pasada ? '<span class="badge badge-rojo">Pasada</span>' : esManana ? '<span class="badge badge-rojo">Mañana</span>' : '<span class="badge badge-verde">Próxima</span>'}
       </div>
       <div class="cita-actions">
         <button class="btn-sm btn-sm-azul" onclick="editarCita(${c.id})">✏️ Editar</button>
-        <button class="btn-sm btn-sm-rojo" onclick="borrarCita(${c.id})">🗑️ Borrar</button>
+        <button class="btn-sm btn-sm-verde" onclick="compartirCita(${c.id})">📤 Compartir</button>
+        <button class="btn-sm btn-sm-rojo" onclick="borrarCita(${c.id})">🗑️</button>
       </div>
     </div>`;
   }).join('');
+}
+
+function compartirCita(id) {
+  const cita = DB.get('citas', []).find(c => c.id === id);
+  if (!cita) return;
+  const txt = `📅 Cita médica\n${formatFecha(cita.fecha)} a las ${cita.hora}\nMédico: ${cita.profesional}${cita.observaciones ? '\nNotas: ' + cita.observaciones : ''}`;
+  if (navigator.share) {
+    navigator.share({ title: 'Cita médica', text: txt });
+  } else {
+    navigator.clipboard.writeText(txt).then(() => showToast('📋 Copiado'));
+  }
 }
 
 function formatFecha(fechaStr) {
@@ -613,6 +1039,8 @@ function guardarCita() {
   } else {
     citas.push(cita);
     showToast('✅ Cita añadida');
+    // Programar notificación si es posible
+    programarNotificacionCita(cita);
   }
   DB.set('citas', citas);
   cancelarEditarCita();
@@ -657,9 +1085,54 @@ function borrarCita(id) {
   });
 }
 
+// ===== NOTIFICACIONES =====
+async function solicitarPermisoNotificaciones() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  const perm = await Notification.requestPermission();
+  return perm === 'granted';
+}
+
+function programarNotificacionCita(cita) {
+  // La API Notification no permite programar para el futuro desde el navegador sin SW avanzado.
+  // Usamos una comprobación diaria al abrir la app.
+  // El recordatorio se lanza al iniciar si hay citas mañana.
+}
+
+function verificarCitasManana() {
+  const hoy = new Date().toISOString().split('T')[0];
+  const manana = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const citasManana = DB.get('citas', []).filter(c => c.fecha === manana);
+
+  const badge = document.getElementById('notif-citas');
+  if (citasManana.length > 0) {
+    if (badge) { badge.style.display = 'flex'; badge.textContent = citasManana.length; }
+
+    // Notificación nativa si tenemos permiso
+    if (Notification.permission === 'granted') {
+      citasManana.forEach(c => {
+        new Notification('🏥 Cita mañana – FaR-Rmacia', {
+          body: `${c.profesional} a las ${c.hora}${c.observaciones ? '\n' + c.observaciones : ''}`,
+          icon: 'icon-192.png',
+          tag: 'cita-' + c.id
+        });
+      });
+    } else {
+      // Aviso en toast
+      setTimeout(() => {
+        showToast(`📅 Tienes ${citasManana.length} cita(s) mañana`, 'info');
+      }, 2000);
+    }
+  } else {
+    if (badge) badge.style.display = 'none';
+  }
+}
+
 // ===== MINI CITAS EN MENÚ =====
 function cargarCitasMini() {
   const hoy = new Date().toISOString().split('T')[0];
+  const manana = new Date(Date.now() + 86400000).toISOString().split('T')[0];
   const citas = DB.get('citas', [])
     .filter(c => c.fecha >= hoy)
     .sort((a,b) => a.fecha.localeCompare(b.fecha))
@@ -673,9 +1146,12 @@ function cargarCitasMini() {
     return;
   }
 
-  container.innerHTML = citas.map(c =>
-    `<div class="cita-chip" onclick="navigate('citas')">📅 ${formatFecha(c.fecha)} - ${c.profesional}</div>`
-  ).join('');
+  container.innerHTML = citas.map(c => {
+    const urgente = c.fecha === manana;
+    return `<div class="cita-chip${urgente ? ' urgente' : ''}" onclick="navigate('citas')">
+      📅 ${formatFecha(c.fecha)} – ${c.profesional}${urgente ? ' ⚠️' : ''}
+    </div>`;
+  }).join('');
 }
 
 // ===== HISTORIAL MÉDICO =====
@@ -691,7 +1167,43 @@ function guardarNotas() {
   showToast('💾 Notas guardadas');
 }
 
-function archivarDocumento() {
+// ===== SUBIR ARCHIVOS AL HISTORIAL =====
+function subirArchivoHistorial(event) {
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+
+  let processed = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const base64 = e.target.result;
+      const docs = DB.get('docs', []);
+      const prefijo = new Date().toISOString().replace(/[:.]/g,'').slice(0,15);
+      docs.push({
+        id: nextId(),
+        nombre: prefijo + '_' + file.name,
+        titulo: file.name,
+        tipo: file.type || 'application/octet-stream',
+        es_archivo: true,
+        base64: base64,
+        contenido: '',
+        fecha: new Date().toLocaleString('es-ES'),
+        tamano: file.size
+      });
+      DB.set('docs', docs);
+      processed++;
+      if (processed === files.length) {
+        showToast(`✅ ${files.length} archivo(s) guardado(s)`);
+        renderDocs();
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+// ===== CREAR NOTA DE TEXTO =====
+function crearNotaDocumento() {
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
   modal.innerHTML = `
@@ -700,7 +1212,7 @@ function archivarDocumento() {
       <div class="modal-title">📄 Crear Nota / Documento</div>
       <div class="form-group">
         <label class="form-label">Título del documento</label>
-        <input type="text" class="form-input" id="doc-titulo" placeholder="Ej: Analítica Junio 2025"/>
+        <input type="text" class="form-input" id="doc-titulo" placeholder="Ej: Analítica Junio 2026"/>
       </div>
       <div class="form-group">
         <label class="form-label">Contenido</label>
@@ -722,7 +1234,7 @@ function guardarDocumento() {
   const docs = DB.get('docs', []);
   const fecha = new Date().toLocaleString('es-ES');
   const prefijo = new Date().toISOString().replace(/[:.]/g,'_').slice(0,16);
-  docs.push({ id: nextId(), nombre: prefijo + '_' + titulo, titulo, contenido, fecha });
+  docs.push({ id: nextId(), nombre: prefijo + '_' + titulo, titulo, contenido, es_archivo: false, base64: null, tipo: 'text/plain', fecha });
   DB.set('docs', docs);
   document.querySelector('.modal-overlay')?.remove();
   showToast('✅ Documento guardado');
@@ -739,20 +1251,62 @@ function renderDocs() {
     return;
   }
 
-  container.innerHTML = docs.map(doc => `
+  container.innerHTML = docs.map(doc => {
+    const iconos = { 'application/pdf': '📄', 'image/jpeg': '🖼️', 'image/png': '🖼️', 'text/plain': '📝' };
+    const icono = iconos[doc.tipo] || (doc.es_archivo ? '📎' : '📝');
+    const tamanoStr = doc.tamano ? ` · ${(doc.tamano/1024).toFixed(1)} KB` : '';
+    return `
     <div class="doc-item">
-      <div class="doc-icon">📄</div>
+      <div class="doc-icon">${icono}</div>
       <div class="doc-name" onclick="verDocumento(${doc.id})" style="cursor:pointer;color:var(--azul-oscuro)">
-        ${doc.titulo}<br><span style="font-size:11px;color:#999;font-weight:400">${doc.fecha}</span>
+        ${doc.titulo}<br><span style="font-size:11px;color:#999;font-weight:400">${doc.fecha}${tamanoStr}</span>
       </div>
-      <button class="doc-del" onclick="borrarDoc(${doc.id})">🗑️</button>
+      <button class="doc-compartir" onclick="compartirDoc(${doc.id})" title="Compartir">📤</button>
+      <button class="doc-del" onclick="borrarDoc(${doc.id})" title="Borrar">🗑️</button>
     </div>
-  `).join('');
+  `;}).join('');
 }
 
 function verDocumento(id) {
   const doc = DB.get('docs', []).find(d => d.id === id);
   if (!doc) return;
+
+  // Si es un archivo real (imagen, pdf...) abrir en nueva pestaña
+  if (doc.es_archivo && doc.base64) {
+    const tipo = doc.tipo || 'application/octet-stream';
+    if (tipo.startsWith('image/')) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal-sheet" style="text-align:center">
+          <div class="modal-handle"></div>
+          <div class="modal-title">🖼️ ${doc.titulo}</div>
+          <img src="${doc.base64}" style="max-width:100%;border-radius:12px;margin-bottom:12px"/>
+          <button class="btn-primary" onclick="compartirDoc(${doc.id})">📤 Compartir</button>
+          <button class="btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    } else {
+      // Intentar abrir PDF u otros archivos
+      try {
+        const byteStr = atob(doc.base64.split(',')[1]);
+        const ab = new ArrayBuffer(byteStr.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+        const blob = new Blob([ab], { type: tipo });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      } catch(e) {
+        showToast('No se puede previsualizar este tipo de archivo', 'error');
+      }
+    }
+    return;
+  }
+
+  // Nota de texto
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
   modal.innerHTML = `
@@ -772,7 +1326,25 @@ function verDocumento(id) {
 function compartirDoc(id) {
   const doc = DB.get('docs', []).find(d => d.id === id);
   if (!doc) return;
-  const txt = `${doc.titulo}\n${doc.fecha}\n\n${doc.contenido}`;
+
+  if (doc.es_archivo && doc.base64 && navigator.share) {
+    // Compartir archivo real
+    try {
+      const tipo = doc.tipo || 'application/octet-stream';
+      const byteStr = atob(doc.base64.split(',')[1]);
+      const ab = new ArrayBuffer(byteStr.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+      const blob = new Blob([ab], { type: tipo });
+      const file = new File([blob], doc.titulo, { type: tipo });
+      navigator.share({ files: [file], title: doc.titulo }).catch(() => {
+        navigator.share({ title: doc.titulo, text: doc.titulo });
+      });
+      return;
+    } catch(e) {}
+  }
+
+  const txt = doc.es_archivo ? doc.titulo : `${doc.titulo}\n${doc.fecha}\n\n${doc.contenido}`;
   if (navigator.share) {
     navigator.share({ title: doc.titulo, text: txt });
   } else {
@@ -798,10 +1370,17 @@ function verificarAlertas() {
   });
 
   if (alertas.length > 0) {
-    const nombres = alertas.map(m => m.nombre).join(', ');
     setTimeout(() => {
       showToast(`⚠️ Stock bajo: ${alertas.length} medicamento(s)`, 'error');
     }, 1500);
+
+    if (Notification.permission === 'granted') {
+      new Notification('⚠️ Stock bajo – FaR-Rmacia', {
+        body: alertas.map(m => m.nombre).join(', '),
+        icon: 'icon-192.png',
+        tag: 'stock-bajo'
+      });
+    }
   }
 }
 
@@ -811,12 +1390,25 @@ document.addEventListener('DOMContentLoaded', () => {
   actualizarReloj();
   setInterval(actualizarReloj, 30000);
   
-  // Fecha por defecto en citas
   const hoy = new Date().toISOString().split('T')[0];
   document.getElementById('c-fecha').value = hoy;
 
   cargarCitasMini();
   verificarAlertas();
+  verificarCitasManana();
+
+  // Solicitar permiso notificaciones
+  solicitarPermisoNotificaciones().then(ok => {
+    if (ok) verificarCitasManana();
+  });
+
+  // Inicializar gestos swipe
+  initSwipeGestures();
+
+  // Sincronización automática si hay pendientes al abrir
+  if (localStorage.getItem('farrmacia_pendingSync') === 'true') {
+    setTimeout(() => syncToFirebase(), 3000);
+  }
 
   // Service Worker para PWA
   if ('serviceWorker' in navigator) {
