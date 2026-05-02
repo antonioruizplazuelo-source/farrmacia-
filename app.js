@@ -792,3 +792,38 @@ document.addEventListener('DOMContentLoaded', () => {
         navigator.serviceWorker.register('sw.js').catch(() => {});
     }
 });
+// Añade esto al final de tu app.js o dentro de la inicialización
+async function activarEscuchaEnTiempoReal() {
+    if (!window.db || !navigator.onLine) return;
+
+    const { doc, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+
+    // "Escuchamos" el documento de antonio
+    onSnapshot(doc(window.db, "usuarios", "antonio"), (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            // IMPORTANTE: Solo actualizamos si los datos de la nube son más nuevos
+            // o si queremos sincronización total inmediata:
+            console.log("🔔 Cambio detectado en la nube! Actualizando interfaz...");
+            
+            Object.keys(data).forEach(key => {
+                if (key !== 'ultimaSincro') {
+                    localStorage.setItem('farrmacia_' + key, JSON.stringify(data[key]));
+                }
+            });
+
+            // Refrescamos la pantalla actual para que el usuario vea el cambio
+            if (currentScreen === 'inventario') renderInventario();
+            if (currentScreen === 'menu') cargarCitasMini();
+            if (currentScreen === 'pedidos') renderPedidos();
+            
+            // Feedback visual de que ha entrado algo nuevo
+            const icon = document.getElementById('sync-icon');
+            if(icon) {
+                icon.style.textShadow = "0 0 10px #CCFF00";
+                setTimeout(() => icon.style.textShadow = "none", 1000);
+            }
+        }
+    });
+}
