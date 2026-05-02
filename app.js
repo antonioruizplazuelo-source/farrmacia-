@@ -775,11 +775,16 @@ function verificarAlertas() {
 document.addEventListener('DOMContentLoaded', () => {
     initDB();
     actualizarReloj();
-    actualizarEstadoRed(); // Detectar estado inicial de red
+    actualizarEstadoRed(); 
     setInterval(actualizarReloj, 30000);
     
-    // Al iniciar, intentar descargar de la nube si el móvil está limpio
-    setTimeout(cargarDesdeNube, 2000);
+    // 1. Intentamos la carga inicial
+    setTimeout(async () => {
+        await cargarDesdeNube();
+        // 2. ACTIVAMOS LA ESCUCHA EN TIEMPO REAL
+        // Esto es lo que hace que Android y PC se hablen entre sí
+        activarEscuchaEnTiempoReal(); 
+    }, 2000);
 
     const hoy = new Date().toISOString().split('T')[0];
     const cFecha = document.getElementById('c-fecha');
