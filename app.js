@@ -1,97 +1,119 @@
-// ===== CONFIGURACIÓN DB LOCAL =====
+// ===== CONFIGURACIÓN Y DB =====
 const DB = {
     get(key, def = []) {
-        try { return JSON.parse(localStorage.getItem('farrmacia_' + key)) ?? def; }
-        catch { return def; }
+        return JSON.parse(localStorage.getItem('farrmacia_' + key)) ?? def;
     },
     set(key, val) {
         localStorage.setItem('farrmacia_' + key, JSON.stringify(val));
-        sincronizarConNube(); // Sincroniza cada vez que guardas algo
+        sincronizarConNube(); // Sync auto al cambiar algo
     }
 };
 
-// ===== NAVEGACIÓN Y ESTADOS =====
+// ===== NAVEGACIÓN =====
 let currentScreen = 'menu';
-let navHistory = [];
-let editingCitaId = null;
-let editingMedId = null;
-let pedidoItems = [];
-
 function navigate(screen) {
-    if (currentScreen !== screen) navHistory.push(currentScreen);
     currentScreen = screen;
-
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-' + screen)?.classList.add('active');
-
-    // Actualizar Header y Nav (Lógica simplificada del Source 2/3)
-    document.getElementById('btn-back')?.classList.toggle('visible', screen !== 'menu');
+    document.getElementById('screen-' + screen).classList.add('active');
     
-    switch(screen) {
-        case 'menu': cargarCitasMini(); break;
-        case 'inventario': renderInventario(); break;
-        case 'pedidos': renderPedidos(); break;
-        case 'citas': renderCitas(); break;
-        case 'historial': cargarHistorial(); break;
-    }
+    if(screen === 'inventario') renderInventario();
+    if(screen === 'pedidos') renderPedidos();
+    if(screen === 'menu') cargarCitasMini();
 }
 
-// ===== FIREBASE: SINCRONIZACIÓN =====
+// ===== SINCRONIZACIÓN FIREBASE (REALTIME) =====
 async function sincronizarConNube() {
     if (!navigator.onLine || !window.db) return;
     try {
         const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
         const datos = {
             meds: DB.get('meds'),
+            citas: DB.get('citas'),
             notas: DB.get('notas', ''),
-            docs: DB.get('docs', []),
-            citas: DB.get('citas', []),
             ultimaSincro: new Date().toISOString()
         };
         await setDoc(doc(window.db, "usuarios", "antonio"), datos);
-        actualizarEstadoRed(true);
-    } catch (e) { console.error("Error nube:", e); }
+        console.log("☁️ Sincronizado");
+    } catch (e) { console.error(e); }
 }
 
-async function activarEscuchaEnTiempoReal() {
-    if (!window.db) return;
+async function activarEscuchaRealTime() {
+    if (!window.db || !navigator.onLine) return;
     const { doc, onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-    onSnapshot(doc(window.db, "usuarios", "antonio"), (docSnap) => {
-        if (docSnap.exists()) {
-            const data = docSnap.data();
+    
+    onSnapshot(doc(window.db, "usuarios", "antonio"), (snap) => {
+        if (snap.exists()) {
+            const data = snap.data();
+            // Actualizar LocalStorage con lo que viene de la nube
             Object.keys(data).forEach(key => {
-                if (key !== 'ultimaSincro') localStorage.setItem('farrmacia_' + key, JSON.stringify(data[key]));
+                localStorage.setItem('farrmacia_' + key, JSON.stringify(data[key]));
             });
-            refrescarPantallaActual();
+            refrescarUI();
+            actualizarEstadoRed(true);
         }
     });
 }
 
-function actualizarEstadoRed() {
+// ===== UI Y RENDER =====
+function refrescarUI() {
+    if (currentScreen === 'inventario') renderInventario();
+    if (currentScreen === 'menu') cargarCitasMini();
+}
+
+function actualizarEstadoRed(online) {
     const icon = document.getElementById('sync-icon');
     const text = document.getElementById('sync-text');
-    if (navigator.onLine) {
-        icon.style.color = "#CCFF00"; 
+    if (online || navigator.onLine) {
+        icon.style.color = "#CCFF00";
         text.textContent = "Sincronizado";
     } else {
         icon.style.color = "#FF9800";
-        text.textContent = "Modo Local (Offline)";
+        text.textContent = "Modo Local";
     }
 }
 
-// ===== INICIALIZACIÓN =====
+function actualizarReloj() {
+    const ahora = new Date();
+    document.getElementById('header-clock').innerHTML = ahora.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+}
+
+// ===== LÓGICA DE MEDICAMENTOS =====
+function renderInventario() {
+    const meds = DB.get('meds');
+    const container = document.getElementById('inventario-list');
+    container.innerHTML = meds.map(m => `
+        <div class="card">
+            <div style="font-weight:900">${m.nombre.toUpperCase()}</div>
+            <div style="font-size:12px; color:var(--naranja)">Stock: ${m.stock_real} botes</div>
+            <button class="btn-primary" style="padding:5px; font-size:10px" onclick="borrarMed(${m.id})">Borrar</button>
+        </div>
+    `).join('');
+}
+
+function guardarMedicamento() {
+    const nombre = document.getElementById('f-nombre').value;
+    if(!nombre) return;
+    const meds = DB.get('meds');
+    meds.push({
+        id: Date.now(),
+        nombre,
+        cantidad_bote: document.getElementById('f-bote').value,
+        dosis_dia: document.getElementById('f-dosis').value,
+        stock_real: document.getElementById('f-stock').value
+    });
+    DB.set('meds', meds);
+    navigate('inventario');
+}
+
+// ===== INICIO =====
 document.addEventListener('DOMContentLoaded', () => {
     actualizarReloj();
-    setInterval(actualizarReloj, 30000);
-    actualizarEstadoRed();
+    setInterval(actualizarReloj, 1000);
+    window.addEventListener('online', () => actualizarEstadoRed(true));
+    window.addEventListener('offline', () => actualizarEstadoRed(false));
     
+    // Simulación de carga de Firebase (debes tener tu config de Firebase antes)
     setTimeout(() => {
-        activarEscuchaEnTiempoReal();
+        activarEscuchaRealTime();
     }, 1000);
-
-    window.addEventListener('online', actualizarEstadoRed);
-    window.addEventListener('offline', actualizarEstadoRed);
 });
-
-// Nota: Debes incluir aquí todas las funciones de renderizado (renderInventario, calcularStock, etc.) 
-// que ya tenías en tu archivo original.
