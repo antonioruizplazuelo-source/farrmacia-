@@ -51,6 +51,11 @@
     #header-title { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; }
     #header-sub { font-size: 11px; opacity: 0.85; font-weight: 600; }
     #header-clock { font-family: 'Fira Code', monospace; font-size: 13px; text-align: right; opacity: 0.95; }
+    
+    /* Estilo para el indicador de Sincronización */
+    .header-status { font-size: 10px; text-align: right; margin-top: 2px; font-weight: 700; }
+    #sync-icon { margin-right: 3px; }
+
     #btn-back {
       background: rgba(255,255,255,0.2);
       border: none;
@@ -156,14 +161,11 @@
       cursor: pointer;
       border: 2px solid transparent;
       transition: all 0.2s;
-      active: scale(0.96);
     }
     .menu-card:active { transform: scale(0.96); border-color: var(--verde-vivo); }
     .menu-card-icon { font-size: 36px; display: block; margin-bottom: 8px; }
     .menu-card-label { font-size: 13px; font-weight: 800; color: var(--azul-oscuro); }
     .menu-card.full-width { grid-column: 1 / -1; }
-    .menu-card.danger { background: #fff0ef; }
-    .menu-card.danger .menu-card-label { color: var(--rojo); }
 
     /* ===== CARDS GENÉRICAS ===== */
     .card {
@@ -339,141 +341,6 @@
       margin-top: 8px;
     }
 
-    /* ===== BADGES / PILLS ===== */
-    .badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
-    }
-    .badge-verde { background: #d4f5e2; color: var(--verde); }
-    .badge-rojo { background: #fde8e8; color: var(--rojo); }
-    .badge-azul { background: #dff0fc; color: var(--azul); }
-    .badge-naranja { background: #fde8d0; color: var(--naranja); }
-
-    /* ===== BARRA DE PROGRESO ===== */
-    .progress-bar-wrap { background: #e8e8e8; border-radius: 99px; height: 8px; overflow: hidden; margin: 6px 0; }
-    .progress-bar { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--verde), var(--verde-vivo)); transition: width 0.5s; }
-    .progress-bar.warn { background: linear-gradient(90deg, #f39c12, #e67e22); }
-    .progress-bar.danger { background: linear-gradient(90deg, var(--rojo), #c0392b); }
-
-    /* ===== MODALES ===== */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 500;
-      display: flex;
-      align-items: flex-end;
-      animation: fadeIn 0.2s;
-    }
-    .modal-sheet {
-      background: white;
-      width: 100%;
-      max-height: 90dvh;
-      border-radius: 24px 24px 0 0;
-      padding: 8px 20px 30px;
-      overflow-y: auto;
-      animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-    .modal-handle { width: 40px; height: 4px; background: #e0e0e0; border-radius: 99px; margin: 8px auto 16px; }
-    .modal-title { font-size: 20px; font-weight: 900; color: var(--azul-oscuro); margin-bottom: 16px; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-    /* ===== PEDIDOS ===== */
-    .pedido-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 0;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    .pedido-row:last-child { border-bottom: none; }
-    .pedido-qty {
-      width: 60px;
-      padding: 8px;
-      border: 2px solid var(--azul);
-      border-radius: 10px;
-      text-align: center;
-      font-size: 16px;
-      font-weight: 900;
-      font-family: 'Fira Code', monospace;
-      flex-shrink: 0;
-    }
-    .pedido-info { flex: 1; min-width: 0; }
-    .pedido-nombre { font-size: 14px; font-weight: 800; color: var(--azul-oscuro); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .pedido-stock { font-size: 12px; color: var(--naranja); font-weight: 700; }
-    .pedido-futuro { font-size: 12px; color: var(--verde); font-weight: 700; }
-
-    /* ===== CITAS ===== */
-    .cita-card {
-      background: white;
-      border-radius: var(--radio);
-      border-left: 4px solid var(--azul);
-      padding: 12px 14px;
-      margin-bottom: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-    .cita-date { font-size: 13px; font-weight: 900; color: var(--azul); }
-    .cita-doctor { font-size: 15px; font-weight: 800; color: var(--azul-oscuro); }
-    .cita-obs { font-size: 12px; color: var(--gris-texto); margin-top: 3px; }
-    .cita-actions { display: flex; gap: 8px; margin-top: 8px; }
-    .btn-sm {
-      padding: 6px 14px;
-      border: none;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 800;
-      cursor: pointer;
-      font-family: 'Nunito', sans-serif;
-    }
-    .btn-sm-azul { background: var(--azul); color: white; }
-    .btn-sm-rojo { background: var(--rojo); color: white; }
-
-    /* ===== HISTORIAL ===== */
-    .nota-area {
-      width: 100%;
-      min-height: 200px;
-      padding: 14px;
-      border: 2px solid #e0e0e0;
-      border-radius: var(--radio);
-      font-size: 14px;
-      font-family: 'Nunito', sans-serif;
-      resize: vertical;
-      line-height: 1.6;
-    }
-    .nota-area:focus { border-color: var(--azul); outline: none; }
-    .doc-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      background: #f5f5f5;
-      border-radius: 10px;
-      margin-bottom: 6px;
-    }
-    .doc-icon { font-size: 20px; flex-shrink: 0; }
-    .doc-name { flex: 1; font-size: 13px; font-weight: 700; color: #333; word-break: break-all; }
-    .doc-del { background: var(--rojo); color: white; border: none; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 14px; }
-
-    /* ===== EMPTY STATE ===== */
-    .empty-state { text-align: center; padding: 40px 20px; }
-    .empty-icon { font-size: 60px; margin-bottom: 12px; opacity: 0.4; }
-    .empty-text { font-size: 15px; color: #aaa; font-weight: 700; }
-
-    /* ===== SECCIÓN TÍTULOS ===== */
-    .section-title {
-      font-size: 22px;
-      font-weight: 900;
-      color: var(--azul-oscuro);
-      margin-bottom: 16px;
-      padding-top: 4px;
-    }
-    .section-title span { color: var(--verde); }
-
     /* ===== TOAST ===== */
     #toast {
       position: fixed;
@@ -498,65 +365,28 @@
     #toast.success { background: var(--verde); }
     #toast.error { background: var(--rojo); }
 
-    /* ===== CONFIRM DIALOG ===== */
-    .confirm-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.6);
-      z-index: 600;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    .confirm-box {
-      background: white;
-      border-radius: 20px;
-      padding: 24px;
-      width: 100%;
-      max-width: 360px;
-      text-align: center;
-    }
-    .confirm-title { font-size: 18px; font-weight: 900; color: #333; margin-bottom: 10px; }
-    .confirm-text { font-size: 14px; color: #666; margin-bottom: 20px; }
-    .confirm-btns { display: flex; gap: 10px; }
-    .confirm-btns button { flex: 1; padding: 12px; border: none; border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer; font-family: 'Nunito', sans-serif; }
-    .confirm-cancel { background: #e0e0e0; color: #333; }
-    .confirm-ok { background: var(--rojo); color: white; }
-
-    /* ===== HISTORIAL PEDIDOS ===== */
-    .historial-item {
-      background: #f9f9f9;
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 8px;
-      border-left: 3px solid var(--azul);
-    }
-    .historial-item-date { font-size: 11px; color: #999; font-weight: 700; }
-    .historial-item-num { font-size: 13px; font-weight: 900; color: var(--azul-oscuro); }
-    .historial-item-med { font-size: 12px; color: #555; }
-
     /* scrollbar */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 99px; }
-
-    /* Date input */
-    input[type="date"], input[type="time"] {
-      appearance: none;
-      -webkit-appearance: none;
-    }
   </style>
 </head>
 <body>
 <div id="app">
-  <!-- HEADER -->
+  <!-- HEADER MODIFICADO -->
   <div id="header">
     <button id="btn-back" onclick="goBack()">←</button>
     <div>
       <div id="header-title">💊 FaR-Rmacia</div>
       <div id="header-sub">Gestión de medicamentos</div>
     </div>
-    <div id="header-clock"></div>
+    <div>
+      <div id="header-clock"></div>
+      <!-- Nuevo Indicador de Sincronización -->
+      <div class="header-status">
+        <span id="sync-icon" style="color: gray;">●</span> 
+        <span id="sync-text">Comprobando...</span>
+      </div>
+    </div>
   </div>
 
   <!-- CONTENT -->
@@ -696,13 +526,12 @@
       <div class="section-title">📁 Historial <span>Médico</span></div>
       <div class="card">
         <div class="card-header">📝 Bloc de Notas Médicas</div>
-        <textarea id="h-notas" class="nota-area" placeholder="Escribe aquí tus notas médicas, diagnósticos, medicaciones anteriores..."></textarea>
+        <textarea id="h-notas" class="nota-area" placeholder="Escribe aquí tus notas médicas..."></textarea>
         <button class="btn-primary" onclick="guardarNotas()">💾 Guardar Notas</button>
       </div>
       <div class="card">
         <div class="card-header">📂 Documentos Archivados</div>
-        <p style="font-size:12px;color:#999;margin-bottom:10px;">En Android puedes guardar texto o notas como documentos.</p>
-        <button class="btn-secondary" style="margin-top:0" onclick="archivarDocumento()">📄 Crear Nota / Documento</button>
+        <button class="btn-secondary" onclick="archivarDocumento()">📄 Crear Nota / Documento</button>
         <div id="docs-list" style="margin-top:10px"></div>
       </div>
     </div>
@@ -778,8 +607,7 @@
 <!-- TOAST -->
 <div id="toast"></div>
 
-<script src="app.js"></script>
-  <!-- CONFIGURACIÓN DE FIREBASE -->
+<!-- CONFIGURACIÓN DE FIREBASE -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -796,12 +624,11 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   
-  // Esto hace que 'db' sea visible para tu app.js
   window.db = db;
   console.log("🔥 Firebase conectado");
 </script>
 
-<!-- Tu app.js DEBE ir debajo de lo anterior -->
+<!-- CARGA DE APP.JS AL FINAL -->
 <script src="app.js"></script>
 </body>
 </html>
