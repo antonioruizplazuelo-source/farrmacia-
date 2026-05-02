@@ -10,18 +10,44 @@ const DB = {
     },
     set(key, val) {
         localStorage.setItem('farrmacia_' + key, JSON.stringify(val));
-        // Sincronizar con Firebase cada vez que se guarda algo localmente
+        // Lanzamos sincronización automática al guardar algo
         sincronizarConNube();
     }
 };
 
-// Función para sincronizar TODO el estado a Firebase
+// ==========================================
+// MONITOR DE CONEXIÓN Y SINCRONIZACIÓN AUTO
+// ==========================================
+function actualizarEstadoRed() {
+    const icon = document.getElementById('sync-icon');
+    const text = document.getElementById('sync-text');
+    
+    if (!icon || !text) return;
+
+    if (navigator.onLine) {
+        icon.style.color = "#CCFF00"; // Amarillo FaR-Rmacia
+        text.textContent = "Sincronizado";
+        console.log("🌐 Conexión recuperada. Sincronizando...");
+        sincronizarConNube();
+    } else {
+        icon.style.color = "#FF9800"; // Naranja (Offline)
+        text.textContent = "Modo Local";
+        console.warn("⚠️ Sin conexión. Trabajando en local.");
+    }
+}
+
+// Escuchadores de red
+window.addEventListener('online', actualizarEstadoRed);
+window.addEventListener('offline', actualizarEstadoRed);
+
+// Función para sincronizar TODO el estado a Firebase (MEJORADA)
 async function sincronizarConNube() {
-    if (!window.db) return;
+    // Si no hay red o Firebase no ha cargado, no hacemos nada
+    if (!navigator.onLine || !window.db) return;
+
     try {
         const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
         
-        // Preparamos el paquete de datos
         const datosCompletos = {
             meds: DB.get('meds'),
             notas: DB.get('notas', ''),
@@ -42,14 +68,14 @@ async function sincronizarConNube() {
 
 // Función para descargar datos al iniciar (si el LocalStorage está vacío)
 async function cargarDesdeNube() {
-    if (!window.db) return;
+    if (!window.db || !navigator.onLine) return;
     try {
         const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
         const docSnap = await getDoc(doc(window.db, "usuarios", "antonio"));
         
         if (docSnap.exists()) {
             const data = docSnap.data();
-            // Solo cargamos si el local está vacío para no machacar datos nuevos por error
+            // Si el local está vacío (o solo el ejemplo), cargamos la nube
             if (DB.get('meds').length <= 1) { 
                 Object.keys(data).forEach(key => {
                     if (key !== 'ultimaSincro') {
@@ -57,7 +83,8 @@ async function cargarDesdeNube() {
                     }
                 });
                 console.log("📥 Datos recuperados de la nube");
-                navigate('menu'); // Refrescar vista
+                if (currentScreen === 'menu') cargarCitasMini(); // Refrescar si estamos en inicio
+                renderInventario(); 
             }
         }
     } catch (error) {
@@ -108,9 +135,11 @@ function navigate(screen) {
         'historial-pedidos': { title: '📜 Historial Pedidos', sub: '', back: true },
     };
     const t = titles[screen] || { title: 'FaR-Rmacia', sub: '', back: true };
-    document.getElementById('header-title').textContent = t.title;
-    document.getElementById('header-sub').textContent = t.sub;
-    document.getElementById('btn-back').classList.toggle('visible', t.back);
+    
+    // Solo actualizamos el texto si existen los elementos
+    if(document.getElementById('header-title')) document.getElementById('header-title').textContent = t.title;
+    if(document.getElementById('header-sub')) document.getElementById('header-sub').textContent = t.sub;
+    if(document.getElementById('btn-back')) document.getElementById('btn-back').classList.toggle('visible', t.back);
 
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.nav === screen);
@@ -161,12 +190,14 @@ function actualizarReloj() {
     const anio = ahora.getFullYear();
     const hora = String(ahora.getHours()).padStart(2,'0');
     const min = String(ahora.getMinutes()).padStart(2,'0');
-    document.getElementById('header-clock').innerHTML = `${dia} ${mes} ${anio}<br>${hora}:${min}`;
+    const clock = document.getElementById('header-clock');
+    if(clock) clock.innerHTML = `${dia} ${mes} ${anio}<br>${hora}:${min}`;
 }
 
 // ===== TOAST =====
 function showToast(msg, type = 'success') {
     const t = document.getElementById('toast');
+    if(!t) return;
     t.textContent = msg;
     t.className = 'show ' + type;
     setTimeout(() => t.className = '', 2500);
@@ -229,6 +260,7 @@ function colorDias(dias) {
 function renderInventario() {
     const meds = DB.get('meds');
     const container = document.getElementById('inventario-list');
+    if (!container) return;
     if (meds.length === 0) {
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><div class="empty-text">No hay medicamentos.<br>Pulsa + para añadir uno.</div></div>`;
         return;
@@ -264,8 +296,12 @@ function renderInventario() {
 
 // ===== AÑADIR MEDICAMENTO =====
 function limpiarFormulario() {
-    ['f-nombre','f-bote','f-dosis','f-stock','f-obs'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('f-incluir').checked = true;
+    ['f-nombre','f-bote','f-dosis','f-stock','f-obs'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.value = '';
+    });
+    const incl = document.getElementById('f-incluir');
+    if(incl) incl.checked = true;
 }
 
 function guardarMedicamento() {
@@ -392,6 +428,7 @@ function renderPedidos() {
     });
 
     const container = document.getElementById('pedidos-list');
+    if (!container) return;
     if (meds.length === 0) {
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">🛒</div><div class="empty-text">No hay medicamentos registrados.</div></div>`;
         return;
@@ -413,20 +450,24 @@ function renderPedidos() {
 function togglePedidoIncluir(i, checked) {
     pedidoItems[i].incluir_pedido = checked ? 1 : 0;
     const row = document.getElementById('pedido-row-' + i);
-    row.style.opacity = checked ? '1' : '0.5';
-    row.style.background = checked ? '' : '#fff5f5';
+    if(row) {
+        row.style.opacity = checked ? '1' : '0.5';
+        row.style.background = checked ? '' : '#fff5f5';
+    }
 }
 
 function actualizarFuturo(i) {
     const qty = parseFloat(document.getElementById('qty-' + i).value) || 0;
     pedidoItems[i].qty = qty;
     const item = pedidoItems[i];
+    const el = document.getElementById('futuro-' + i);
+    if (!el) return;
     if (qty > 0 && item.tomaDia > 0 && item.unidBote > 0) {
         const dosisExtra = qty * item.unidBote;
         const diasFuturo = Math.floor((item.dosisActuales + dosisExtra) / item.tomaDia);
-        document.getElementById('futuro-' + i).textContent = '✅ Tras pedir: ' + formatTiempo(diasFuturo);
+        el.textContent = '✅ Tras pedir: ' + formatTiempo(diasFuturo);
     } else {
-        document.getElementById('futuro-' + i).textContent = '--';
+        el.textContent = '--';
     }
 }
 
@@ -444,16 +485,18 @@ function calcularPedidoMeses() {
 
 function _ejecutarCalculo(dias) {
     pedidoItems.forEach((item, i) => {
+        const qtyEl = document.getElementById('qty-' + i);
+        const futEl = document.getElementById('futuro-' + i);
         if (item.incluir_pedido === 0) {
-            document.getElementById('qty-' + i).value = 0;
-            document.getElementById('futuro-' + i).textContent = 'EXCLUIDO';
+            if(qtyEl) qtyEl.value = 0;
+            if(futEl) futEl.textContent = 'EXCLUIDO';
             return;
         }
         const necesito = item.tomaDia * dias;
         const tengo = item.botesCalc * item.unidBote;
         const falta = Math.max(0, necesito - tengo);
         const botes = item.unidBote > 0 ? Math.ceil(falta / item.unidBote) : 0;
-        document.getElementById('qty-' + i).value = botes;
+        if(qtyEl) qtyEl.value = botes;
         pedidoItems[i].qty = botes;
         actualizarFuturo(i);
     });
@@ -534,6 +577,7 @@ function compartirPedido(numPedido) {
 function renderHistorialPedidos() {
     const historial = DB.get('historial_pedidos', []).reverse();
     const container = document.getElementById('historial-pedidos-list');
+    if (!container) return;
     if (historial.length === 0) {
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">📜</div><div class="empty-text">No hay pedidos registrados.</div></div>`;
         return;
@@ -566,6 +610,7 @@ function renderHistorialPedidos() {
 function renderCitas() {
     const citas = DB.get('citas', []).sort((a,b) => a.fecha.localeCompare(b.fecha));
     const container = document.getElementById('citas-list');
+    if (!container) return;
     if (citas.length === 0) {
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-text">No hay citas.</div></div>`;
         return;
@@ -584,13 +629,16 @@ function renderCitas() {
 
 function formatFecha(fechaStr) {
     if (!fechaStr) return '';
-    const [y, m, d] = fechaStr.split('-');
+    const parts = fechaStr.split('-');
+    if(parts.length < 3) return fechaStr;
+    const [y, m, d] = parts;
     const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
     return `${d} ${meses[parseInt(m)-1]} ${y}`;
 }
 
 function guardarCita() {
-    const prof = document.getElementById('c-prof').value.trim();
+    const profEl = document.getElementById('c-prof');
+    const prof = profEl ? profEl.value.trim() : '';
     if (!prof) { showToast('⚠️ Escribe el médico', 'error'); return; }
     const cita = {
         id: editingCitaId || nextId(),
@@ -626,9 +674,12 @@ function editarCita(id) {
 
 function cancelarEditarCita() {
     editingCitaId = null;
-    document.getElementById('c-prof').value = '';
-    document.getElementById('c-btn-guardar').textContent = '➕ Añadir Cita';
-    document.getElementById('c-btn-cancelar').style.display = 'none';
+    const prof = document.getElementById('c-prof');
+    if(prof) prof.value = '';
+    const btnG = document.getElementById('c-btn-guardar');
+    if(btnG) btnG.textContent = '➕ Añadir Cita';
+    const btnC = document.getElementById('c-btn-cancelar');
+    if(btnC) btnC.style.display = 'none';
 }
 
 function borrarCita(id) {
@@ -650,13 +701,17 @@ function cargarCitasMini() {
 
 // ===== HISTORIAL MÉDICO =====
 function cargarHistorial() {
-    document.getElementById('h-notas').value = DB.get('notas', '');
+    const notasEl = document.getElementById('h-notas');
+    if(notasEl) notasEl.value = DB.get('notas', '');
     renderDocs();
 }
 
 function guardarNotas() {
-    DB.set('notas', document.getElementById('h-notas').value);
-    showToast('💾 Notas guardadas');
+    const notasEl = document.getElementById('h-notas');
+    if(notasEl) {
+        DB.set('notas', notasEl.value);
+        showToast('💾 Notas guardadas');
+    }
 }
 
 function archivarDocumento() {
@@ -720,13 +775,15 @@ function verificarAlertas() {
 document.addEventListener('DOMContentLoaded', () => {
     initDB();
     actualizarReloj();
+    actualizarEstadoRed(); // Detectar estado inicial de red
     setInterval(actualizarReloj, 30000);
     
-    // Al iniciar, intentar descargar de la nube
+    // Al iniciar, intentar descargar de la nube si el móvil está limpio
     setTimeout(cargarDesdeNube, 2000);
 
     const hoy = new Date().toISOString().split('T')[0];
-    if(document.getElementById('c-fecha')) document.getElementById('c-fecha').value = hoy;
+    const cFecha = document.getElementById('c-fecha');
+    if(cFecha) cFecha.value = hoy;
 
     cargarCitasMini();
     verificarAlertas();
